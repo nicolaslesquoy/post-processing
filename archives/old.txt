@@ -1,0 +1,23 @@
+def init_log(path_to_log) -> None:
+        try:
+            with open(path_to_log,"w") as f:
+                f.write("Log file for image processing pipeline\n")
+        except:
+            raise Exception("Log creation failed")
+        return None
+    
+    def clear_log(path_to_log) -> None:
+        try:
+            with open(path_to_log,"w") as f:
+                f.write("")
+        except:
+            raise Exception("Log clear failed")
+        return None
+    
+    def to_log(self,path_to_log) -> None:
+        try:
+            with open(path_to_log,"a") as f:
+                f.write("".join(str(self),"\n"))
+        except:
+            raise Exception("Log failed")
+        return None
