@@ -40,6 +40,7 @@ def create_dst(img,Nx,Ny):
         return (rect[0][1] - rect[1][1])/(rect[0][0] - rect[1][0])*x
     def r_to_l(x):
         return (rect[3][1] - rect[2][1])/(rect[3][0] - rect[2][0])*x + Ny
+    
 
 def order_corner_clockwise(points):
     center = tuple(map(operator.truediv, reduce(lambda x, y: map(operator.add, x, y), points), [len(points)] * 2))
