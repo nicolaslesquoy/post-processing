@@ -1,0 +1,15 @@
+[paths]
+# Path to the various image folders
+path_to_calibration = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/calibration/"
+path_to_camera_calibration = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/camera_calibration/"
+path_to_raw = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/"
+path_to_cleaned = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/cleaned/"
+path_to_warped = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/warped/"
+# Path to the final output folder where all graphs will be saved
+path_to_final = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/final/"
+# Path to the debug folder where all intermediate graphs will be saved
+path_to_debug = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/debug/"
+# Path to the logs folder where all log files will be saved
+path_to_logs = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/logs/"
+[parameters]
+send_onclick_to_log = true
