@@ -21,3 +21,33 @@ def init_log(path_to_log) -> None:
         except:
             raise Exception("Log failed")
         return None
+
+    
+    """ # Extract SIFT features from the large regions
+sift = cv2.xfeatures2d.SIFT_create()
+large_region_features = []
+for rect in large_regions:
+    x, y, w, h = rect
+    region = img[y:y+h, x:x+w]
+    gray_region = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+    keypoints, descriptors = sift.detectAndCompute(gray_region, None)
+    large_region_features.append(descriptors)
+
+# Define the reference features
+reference_features = large_region_features[0]
+
+# Compare the features of each large region to the reference features
+matches = []
+for i in range(len(large_regions)):
+    similarity = cv2.compareHist(reference_features, large_region_features[i], cv2.HISTCMP_CORREL)
+    matches.append((i, similarity))
+
+# Sort the matches by similarity
+matches.sort(key=lambda x: x[1], reverse=True)
+
+# Select the most interesting regions
+num_interesting_regions = 3
+interesting_regions = []
+for i in range(num_interesting_regions):
+    index = matches[i][0]
+    interesting_regions.append(large_regions[index])"""
