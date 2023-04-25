@@ -1,9 +1,11 @@
 import pandas as pd
 import pathlib
 import matplotlib.pyplot as plt
+from matplotlib.widgets import RectangleSelector
 import tomli as tomllib
 import numpy as np
-from scipy.optimize import curve_fit
+import cv2
+from PIL import Image
 
 from operations import Operations
 
@@ -20,88 +22,130 @@ path_to_debug = pathlib.Path(config["paths"]["path_to_debug"])
     # path_to_logs = pathlib.Path(config["paths"]["path_to_logs"]) # TODO Use these files when implementing 'logging'
     # path_to_calibration_log = path_to_logs / "calibration.log"
 path_to_intermediary = path_to_debug / "intermediary.pkl"
+path_to_raw = pathlib.Path(config["paths"]["path_to_raw"])
+path_to_images = path_to_raw / "incidence_std"
 
-df = pd.read_pickle(path_to_intermediary)
-# print(df.iloc[0])
-# df.replace(None,"[None,None]",inplace=True)
-for i in range(len(df.index)):
-    row = df.iloc[i]
-    row_array = row.values.tolist()[0:len(row)-1]
-    for i in range(len(row_array)):
-        if row_array[i] == None:
-            row_array[i] = [None,None]
-    row_array = np.array(row_array,dtype=np.float32)
-    # print(row_array)
-    # print(row_array[:,1])
-    plt.scatter(row_array[:,0],row_array[:,1],marker="x")
-plt.clf()
+data = pd.read_pickle(path_to_intermediary)
+data.to_string("test/intermediary.txt")
 
 # Test interpolation
+def compute_r2(xdata,ydata,func,popt):
+    residuals = ydata - func(xdata,*popt)
+    ss_res = np.sum(residuals**2)
+    ss_tot = np.sum((ydata-np.mean(ydata))**2)
+    r2 = 1 - (ss_res / ss_tot)
+    return r2
+
 def interpolation(data: np.ndarray) -> np.ndarray:
     """Interpolate the data."""
     def func(x,a,b):
         # Basis function
         return a*x+b
-    x = data[:,0]
-    y = data[:,1]
-    popt, pcov = curve_fit(func, x, y)
-    return popt, pcov
+    popt, pcov = curve_fit(func,data[:,0], data[:,1])
+    return popt, compute_r2(data[:,0],data[:,1],func,popt), func(data[:,0],*popt)
 
-# data = df.iloc[0].values.tolist()[0:len(df.iloc[0])-1]
-# for i in range(len(data)):
-#     if data[i] == None:
-#         data[i] = [None,None]
-# data = np.array(data,dtype=np.float32)
-# popt, pcov = interpolation(data)
+# def create_random_row():
+#     """Create a random row for the dataframe."""
+#     row = []
+#     result = {}
+#     for i in range(6):
+#         row.append([np.random.randint(0,1000),np.random.randint(0,1000)])
+#     nm = ''.join(random.choices(string.ascii_lowercase, k=5))
+#     dt = np.random.randint(0,1000)
+#     return {"name": nm,"points": row,"distance":dt}
+
+# def create_random_dataframe():
+#     """Create a random dataframe."""
+#     df_dict = {}
+#     for i in range(10):
+#         result_int = create_random_row()
+#         name = result_int[list(result_int.keys())[0]]
+#         df_dict[name] = result_int
+#     print(len(df_dict))
+#     keys = list(df_dict.keys())
+#     keys.sort()
+#     df_dict = {key: df_dict[key] for key in keys}
+#     df = pd.DataFrame.from_dict(df_dict,orient="index")
+#     return df
+
+def iterate_over_rows(df):
+    """Iterate over the rows of the dataframe."""
+    for i in range(len(df.index)):
+        row = df.iloc[i]
+        row_array = row.values.tolist()[0:len(row)]
+        points = np.array(row_array[1:len(row_array)-1],dtype=np.float32)
+        plt.scatter(points[:,0],points[:,1],marker="x")
+    plt.savefig("test_load_row.png")
+    plt.clf()
+
+def iterate_over_columns(df):
+    """Iterate over the columns of the dataframe."""
+    for i in range(1,df.shape[1]-1):
+        column = df.iloc[:,i]
+        column_list = column.values.tolist()[0:len(column)]
+        column_array = np.array(column_list,dtype=np.float32)
+        plt.scatter(column_array[:,0],column_array[:,1],marker="x")
+        popt, r2, ydata = interpolation(column_array)
+        plt.plot(column_array[:,0],ydata)
+    plt.savefig("test_load_column.png")
+    plt.clf()
 
 
+# iterate_over_rows(data)
+# iterate_over_columns(data)
 
-#     row = df.iloc[i]
-#     print(row)
-#     row_array = np.array(row.values.tolist()[1:len(row)-1], dtype=np.float32)
-#     print(row_array)
+def create_dst_points(Nx,Ny):
+    """Create the destination points."""
+    center = [Nx/2,Ny/2]
+    dx,dy = 500,500
+    p1 = [center[0] + dx, center[1] + dy]
+    p2 = [center[0] - dx, center[1] + dy]
+    p3 = [center[0] - dx, center[1] - dy]
+    p4 = [center[0] + dx, center[1] - dy]
+    dst_points = np.array(Operations.order_corners_clockwise([
+        p1,p2,p3,p4
+    ]),dtype=np.float32)
+    return dst_points
 
+def warp(img,img_points,dst_points):
+    """Warp the image."""
+    M = cv2.getPerspectiveTransform(img_points,dst_points)
+    warped = cv2.warpPerspective(img,M,(img.shape[1],img.shape[0]))
+    return warped
 
-# data = {"1": [[1,2],[3,4],[4,5],[6,7]],"3": [[16,17],[18,19],[None,None],[None,None]],"2": [[8,9],[10,11],[12,13],[14,15]]}
+def read_file_name(path_to_file: pathlib.Path):
+    """Read the file name from the path."""
+    name = str(path_to_file.stem)
+    incidence, angle, ref = name.split("-")
+    return incidence, angle, ref
 
-# # print(config)
-# calibration_positions = config["measures_calibration"]
-# print(calibration_positions)
-# keys = list(data.keys())
-# keys.sort()
-# data = {key: data[key] for key in keys}
-# df = pd.DataFrame.from_dict(data,orient="index")
-# df.to_pickle("test/test.pkl")
+for path_to_file in path_to_images.glob("*.jpg"):
+    img = np.asanyarray(Image.open(path_to_file))
+    img = cv2.rotate(img,cv2.ROTATE_180)
+    incidence, angle, reference = read_file_name(path_to_file)
+    for i in range(len(data.index)):
+        row = data.iloc[i]
+        row_array = row.values.tolist()[0:len(row)]
+        name = row_array[0]
+        if name == reference:
+            print(name, reference)
+            points = np.array(row_array[1:len(row_array)-1],dtype=np.float32)
+            dst_points = create_dst_points(img.shape[1],img.shape[0])
+            warped = warp(img,points,dst_points)
+            cv2.imwrite(str(path_to_debug / f"{incidence}-{angle}-{reference}.jpg"),warped)
 
-# # df = pd.DataFrame({
-# #     'p1': [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
-# #     'p2': [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]],
-# #     'p3': [[13.0, 14.0], [15.0, 16.0], [17.0, 18.0]],
-# #     'p4': [[19.0, 20.0], [21.0, 22.0], [23.0, 24.0]],
-# #     'distance': [1.0, 2.0, 3.0]
-# # })
+# img = np.asanyarray(Image.open(path_to_calibration / "2.jpg"))
+# img = cv2.rotate(img,cv2.ROTATE_180)
+# for i in range(len(data.index)):
+#     row = data.iloc[i]
+#     row_array = row.values.tolist()[0:len(row)]
+#     name = row_array[0]
+#     img = np.asanyarray(Image.open(path_to_calibration / f"{name}.jpg"))
+#     img = cv2.rotate(img,cv2.ROTATE_180)
+#     points = np.array(row_array[1:len(row_array)-1],dtype=np.float32)
+#     dst_points = create_dst_points(img.shape[1],img.shape[0])
+#     warped = warp(img,points,dst_points)
+#     cv2.imwrite(str(path_to_debug / f"{name}.png"),warped)
 
-# # Select a row from the dataframe
-# print(df)
-# for i in range(len(df.index)):
-#     row = df.iloc[i]
-#     row_array = np.array(row.values.tolist()[0:len(row)], dtype=np.float32)
-#     print(row_array)
-
-# # Convert the row to a numpy array of arrays
-# # row_array = np.array(row.values.tolist()[:-1], dtype=np.float32)
-
-# test = [[16,17],[18,19],[None,None],[None,None]]
-# # Operations.order_corners_clockwise(test)
-
-# for i in range(len(test)):
-#     plt.scatter(test[i][0],test[i][1])
-# plt.clf()
-
-# liste = [[1693.9655344655341, 2003.767732267732],[3363.4640359640343, 1999.4200799200798],[1798.3091908091903, 2964.598901098901],[3241.729770229769, 2947.2082917082917]]
-# sorted_list = Operations.order_corners_clockwise(liste)
-# print(sorted_list)
-
-    
-
+# iterate over images
 

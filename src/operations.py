@@ -1,6 +1,7 @@
 import pathlib
 
 import numpy as np
+import cv2
 
 class Operations:
     """Common operations between the different modules."""
@@ -29,3 +30,27 @@ class Operations:
     def get_file_name(path: pathlib.Path):
         """Returns the file name of a path."""
         return ("" if (p := path).is_dir() else p.name) == ""
+    
+    def read_file_name(path_to_file: pathlib.Path):
+        """
+        Read the file name from the path.
+        """
+        name = str(path_to_file.stem)
+        incidence, angle, ref = name.split("-")
+        return incidence, angle, ref
+
+    
+# for path_to_file in path_to_images.glob("*.jpg"):
+#     img = np.asanyarray(Image.open(path_to_file))
+#     img = cv2.rotate(img,cv2.ROTATE_180)
+#     incidence, angle, reference = read_file_name(path_to_file)
+#     for i in range(len(data.index)):
+#         row = data.iloc[i]
+#         row_array = row.values.tolist()[0:len(row)]
+#         name = row_array[0]
+#         if name == reference:
+#             print(name, reference)
+#             points = np.array(row_array[1:len(row_array)-1],dtype=np.float32)
+#             dst_points = create_dst_points(img.shape[1],img.shape[0])
+#             warped = warp(img,points,dst_points)
+#             cv2.imwrite(str(path_to_debug / f"{incidence}-{angle}-{reference}.jpg"),warped)
