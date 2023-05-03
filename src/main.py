@@ -7,6 +7,7 @@ import tomli as tomllib  # Make this import robust for Python 3.11
 import matplotlib.pyplot as plt
 from matplotlib.widgets import RectangleSelector
 import matplotlib.animation as animation
+import matplotlib.patches as mpatches
 
 from PIL import Image
 import numpy as np
@@ -39,15 +40,20 @@ path_to_images_incidence_std = path_to_raw / "incidence_std"
 path_to_images_derapage_std = path_to_raw / "derapage_std"
 path_to_images_incidence_long = path_to_raw / "incidence_long"
 path_to_images_derapage_long = path_to_raw / "derapage_long"
+path_to_images_incidence_canards = path_to_raw / "incidence_canards"
+path_to_images_derapage_canards = path_to_raw / "derapage_canards"
 list_of_images_path = [
     path_to_images_incidence_std,
     path_to_images_derapage_std,
     path_to_images_incidence_long,
     path_to_images_derapage_long,
+    path_to_images_incidence_canards,
+    path_to_images_derapage_canards,
 ]
 path_to_intermediary = path_to_debug / "intermediary.pkl"
 # Positions of the calibration points on the test bench
 calibration_positions = config["measures_calibration"]
+path_to_final = pathlib.Path(config["paths"]["path_to_final"])
 
 
 class Calibration:
@@ -255,10 +261,11 @@ class Analysis:
         for path_to_file in path_to_folder.glob("*.jpg"):
             warped = Analysis.dewarp(path_to_file, calibration_dataframe)
             result_int = {}
-            name = path_to_file.stem
+            # name = path_to_file.stem
             # ref = Operations.read_file_name(path_to_file)[2]
             try:
-                result_int["name"] = name + "-" + path_to_folder.stem
+                name = path_to_file.stem + "-" + path_to_folder.stem
+                result_int["name"] = name
                 result_int["rectangle"] = Analysis.draw_rectangle(name, warped)
                 result_int["center"] = Analysis.get_center(name, warped)
                 result_dict[name] = result_int
@@ -279,14 +286,20 @@ class Analysis:
     def load_to_df(path_to_pickle):
         return pd.read_pickle(path_to_pickle)
 
+
+class PostProcessing:
     def get_vortex_position(center: list, rectangle: dict):
         if rectangle != None and center != None:
             x1, y1 = rectangle["a"]
             x2, y2 = rectangle["b"]
-            center_vortex_x, center_vortex_y = [(x1 + x2) / 2, (y1 + y2) / 2]
-            dist_x = center[0] - center_vortex_x
-            dist_y = center[1] - center_vortex_y
-            return [dist_x, dist_y]
+            if abs(x1 - x2) < 1e-3 or abs(y1 - y2) < 1e-3:
+                # Missclicks
+                return None
+            else:
+                center_vortex_x, center_vortex_y = [(x1 + x2) / 2, (y1 + y2) / 2]
+                dist_x = center[0] - center_vortex_x
+                dist_y = center[1] - center_vortex_y
+                return [dist_x, dist_y]
         else:
             return None
 
@@ -301,9 +314,14 @@ class Analysis:
         dy = delta_y / delta_ny
         return [dx, dy]
 
-    def prepare_points(result_dataframe: pd.DataFrame, conversion: list):
+    def prepare_points(result_dataframe: pd.DataFrame, conversion: list, flag: int):
+        # flag: 0 si incidence, 1 si dérapage
+        assert flag in [0, 1]
         dx, dy = conversion
-        result_dict = {"15": [], "20": [], "25": []}
+        if flag == 0:
+            result_dict = {"15": [], "20": [], "25": []}
+        else:
+            result_dict = {"0": [], "5": [], "10": []}
         for index, row in result_dataframe.iterrows():
             result_x, result_y = [], []
             name = row["name"]
@@ -313,31 +331,567 @@ class Analysis:
             rectangles = row["rectangle"]
             if center != None and rectangles != None:
                 for i in range(len(rectangles)):
-                    vortex_position = Analysis.get_vortex_position(
+                    vortex_position = PostProcessing.get_vortex_position(
                         center, rectangles[i]
                     )
-                    x, y = abs(vortex_position[0]), abs(vortex_position[1])
-                    x, y = x * dx, y * dy
-                    result_x.append([distance, x])
-                    result_y.append([distance, y])
-                point = {
-                    "label": f"{informations[0]}/{informations[1]}/{informations[2]/informations[3]}",
-                    "x": result_x,
-                    "y": result_y,
-                }
-                result_dict[str(informations[0])].append(point)
+                    if vortex_position != None:
+                        x, y = abs(vortex_position[0]), abs(vortex_position[1])
+                        x, y = x * dx, y * dy
+                        result_x.append([distance, x])
+                        result_y.append([distance, y])
+                    point = {
+                        "label": f"{informations[0]}/{informations[1]}/{informations[2]}/{informations[3]}",
+                        "x": result_x,
+                        "y": result_y,
+                    }
+                    result_dict[str(informations[flag])].append(point)
         return result_dict
 
-    def assemble_points(table_dict: dict):
-        # table_dict : {path_to_folder: result_dict}
-        pass
+    def graph1_2D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"15": "r", "20": "b", "25": "g"}
+        # Projection selon X
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["x"])):
+                        plt.scatter(
+                            result_dict[key][i]["x"][j][0],
+                            result_dict[key][i]["x"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"$b$={label[1]}°/plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["x"][j][0],
+                                result_dict[key][i]["x"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("X [cm]")
+            red_patch = mpatches.Patch(color="red", label="$i$ = 15°")
+            blue_patch = mpatches.Patch(color="blue", label="$i$ = 20°")
+            green_patch = mpatches.Patch(color="green", label="$i$ = 25°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_X.png")
+            plt.clf()
+            print("Graph 1 X done")
+        except Exception as e:
+            print(e)
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["y"])):
+                        plt.scatter(
+                            result_dict[key][i]["y"][j][0],
+                            result_dict[key][i]["y"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"$b$={label[1]}°/plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["y"][j][0],
+                                result_dict[key][i]["y"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("Y [cm]")
+            plt.title("Projection de la position du tourbillon selon Y")
+            red_patch = mpatches.Patch(color="red", label="$i$ = 15°")
+            blue_patch = mpatches.Patch(color="blue", label="$i$ = 20°")
+            green_patch = mpatches.Patch(color="green", label="$i$ = 25°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_Y.png")
+            plt.clf()
+            print("Graph 1 Y done")
+        except Exception as e:
+            print(e)
+
+    def graph1_3D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"15": "r", "20": "b", "25": "g"}
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+
+        def rotate(angle):
+            ax.view_init(azim=angle)
+
+        for key in result_dict:
+            for i in range(len(result_dict[key])):
+                label = result_dict[key][i]["label"].split("/")
+                for j in range(len(result_dict[key][i]["x"])):
+                    ax.scatter(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        s=1,
+                        color=color[key],
+                        marker="x",
+                    )
+                    ax.text(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        f"$b$={label[1]}°/plan n°{label[2]}",
+                        fontsize=6,
+                    )
+        ax.set_xlabel("Distance (cm)")
+        ax.set_ylabel("X (cm)")
+        ax.set_zlabel("Y (cm)")
+        red_patch = mpatches.Patch(color="red", label="$i$ = 15°")
+        blue_patch = mpatches.Patch(color="blue", label="$i$ = 20°")
+        green_patch = mpatches.Patch(color="green", label="$i$ = 25°")
+        ax.legend(handles=[red_patch, blue_patch, green_patch])
+        ax.set_title(f"Vortex position in the 3D space for $i$ = {key}°")
+        # rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0, 362, 2), interval=100)
+        # rot_animation.save(path_to_save / f"rotation_{name}_3D.gif", dpi=100, writer="imagemagick")
+        plt.savefig(path_to_save / f"{name}_3D.png")
+        ax.clear()
+        print("Graph 1 3D done")
+
+    def graph2_2D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"0": "r", "5": "b", "10": "g"}
+        # Projection selon X
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["x"])):
+                        plt.scatter(
+                            result_dict[key][i]["x"][j][0],
+                            result_dict[key][i]["x"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"$i$={label[0]}°/plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["x"][j][0],
+                                result_dict[key][i]["x"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("X [cm]")
+            red_patch = mpatches.Patch(color="red", label="$b$ = 0°")
+            blue_patch = mpatches.Patch(color="blue", label="$b$ = 5°")
+            green_patch = mpatches.Patch(color="green", label="$b$ = 10°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_X.png")
+            plt.clf()
+            print("Graph 2 X done")
+        except Exception as e:
+            print(e)
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["y"])):
+                        plt.scatter(
+                            result_dict[key][i]["y"][j][0],
+                            result_dict[key][i]["y"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"$i$={label[0]}°/plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["y"][j][0],
+                                result_dict[key][i]["y"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("Y [cm]")
+            red_patch = mpatches.Patch(color="red", label="$b$ = 0°")
+            blue_patch = mpatches.Patch(color="blue", label="$b$ = 5°")
+            green_patch = mpatches.Patch(color="green", label="$b$ = 10°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_Y.png")
+            plt.clf()
+            print("Graph 2 Y done")
+        except Exception as e:
+            print(e)
+
+    def graph2_3D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"0": "r", "5": "b", "10": "g"}
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+
+        def rotate(angle):
+            ax.view_init(azim=angle)
+
+        for key in result_dict:
+            for i in range(len(result_dict[key])):
+                label = result_dict[key][i]["label"].split("/")
+                for j in range(len(result_dict[key][i]["x"])):
+                    ax.scatter(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        s=1,
+                        color=color[key],
+                        marker="x",
+                    )
+                    ax.text(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        f"$b$={label[1]}°/plan n°{label[2]}",
+                        fontsize=6,
+                    )
+        ax.set_xlabel("Distance (cm)")
+        ax.set_ylabel("X (cm)")
+        ax.set_zlabel("Y (cm)")
+        red_patch = mpatches.Patch(color="red", label="$b$ = 0°")
+        blue_patch = mpatches.Patch(color="blue", label="$b$ = 5°")
+        green_patch = mpatches.Patch(color="green", label="$b$ = 10°")
+        ax.legend(handles=[red_patch, blue_patch, green_patch])
+        ax.set_title(f"Vortex position in the 3D space for $i$ = {key}°")
+        ax.grid(visible=True)
+        plt.savefig(path_to_save / f"{name}_3D.png")
+        # rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0, 362, 2), interval=100)
+        # rot_animation.save(path_to_save / f"rotation_{name}_3D.gif", dpi=100, writer="imagemagick")
+        ax.clear()
+        print("Graph 2 3D done")
+
+    def graph3_2D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"std": "r", "long": "b", "canard": "g"}
+        # Projection selon X
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["x"])):
+                        plt.scatter(
+                            result_dict[key][i]["x"][j][0],
+                            result_dict[key][i]["x"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["x"][j][0],
+                                result_dict[key][i]["x"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("X [cm]")
+            red_patch = mpatches.Patch(color="red", label="std")
+            blue_patch = mpatches.Patch(color="blue", label="long")
+            green_patch = mpatches.Patch(color="green", label="canard")
+            plt.title(f"Vortex position (X) for $i$ = 20° and $b$ = 0°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_X.png")
+            plt.clf()
+            print("Graph 3 X done")
+        except Exception as e:
+            print(e)
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["y"])):
+                        plt.scatter(
+                            result_dict[key][i]["y"][j][0],
+                            result_dict[key][i]["y"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["y"][j][0],
+                                result_dict[key][i]["y"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("Y [cm]")
+            red_patch = mpatches.Patch(color="red", label="std")
+            blue_patch = mpatches.Patch(color="blue", label="long")
+            green_patch = mpatches.Patch(color="green", label="canard")
+            plt.title(f"Vortex position (Y) for $i$ = 20° and $b$ = 0°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_Y.png")
+            plt.clf()
+            print("Graph 3 Y done")
+        except Exception as e:
+            print(e)
+
+    def graph3_3D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"std": "r", "long": "b", "canard": "g"}
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+
+        def rotate(angle):
+            ax.view_init(azim=angle)
+
+        for key in result_dict:
+            for i in range(len(result_dict[key])):
+                label = result_dict[key][i]["label"].split("/")
+                for j in range(len(result_dict[key][i]["x"])):
+                    ax.scatter(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        s=1,
+                        color=color[key],
+                        marker="x",
+                    )
+                    ax.text(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        f"plan n°{label[2]}",
+                        fontsize=6,
+                    )
+        ax.set_xlabel("Distance (cm)")
+        ax.set_ylabel("X (cm)")
+        ax.set_zlabel("Y (cm)")
+        red_patch = mpatches.Patch(color="red", label="std")
+        blue_patch = mpatches.Patch(color="blue", label="long")
+        green_patch = mpatches.Patch(color="green", label="canard")
+        ax.legend(handles=[red_patch, blue_patch, green_patch])
+        ax.set_title(f"Vortex position in the 3D space for $i$ = {key}° and $b$ = 0°")
+        # rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0, 362, 2), interval=100)
+        # rot_animation.save(path_to_save / f"rotation_{name}_3D.gif", dpi=100, writer="imagemagick")
+        plt.savefig(path_to_save / f"{name}_3D.png")
+        ax.clear()
+        print("Graph 3 3D done")
+        return None
+
+    def graph4_2D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"std": "r", "long": "b", "canard": "g"}
+        # Projection selon X
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["x"])):
+                        plt.scatter(
+                            result_dict[key][i]["x"][j][0],
+                            result_dict[key][i]["x"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["x"][j][0],
+                                result_dict[key][i]["x"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("X [cm]")
+            red_patch = mpatches.Patch(color="red", label="std")
+            blue_patch = mpatches.Patch(color="blue", label="long")
+            green_patch = mpatches.Patch(color="green", label="canard")
+            plt.title(f"Vortex position (X) for $i$ = 20° and $b$ = 10°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_X.png")
+            plt.clf()
+            print("Graph 4 X done")
+        except Exception as e:
+            print(e)
+        try:
+            for key in result_dict:
+                for i in range(len(result_dict[key])):
+                    label = result_dict[key][i]["label"].split("/")
+                    for j in range(len(result_dict[key][i]["y"])):
+                        plt.scatter(
+                            result_dict[key][i]["y"][j][0],
+                            result_dict[key][i]["y"][j][1],
+                            color=color[key],
+                            marker="x",
+                        )
+                        plt.annotate(
+                            f"plan n°{label[2]}",
+                            (
+                                result_dict[key][i]["y"][j][0],
+                                result_dict[key][i]["y"][j][1],
+                            ),
+                            textcoords="offset points",
+                            xytext=(0, -10),
+                            fontsize=6,
+                        )
+            plt.xlabel("Distance [cm]")
+            plt.ylabel("Y [cm]")
+            red_patch = mpatches.Patch(color="red", label="std")
+            blue_patch = mpatches.Patch(color="blue", label="long")
+            green_patch = mpatches.Patch(color="green", label="canard")
+            plt.title(f"Vortex position (Y) for $i$ = 20° and $b$ = 10°")
+            plt.legend(handles=[red_patch, blue_patch, green_patch])
+            plt.grid(visible=True)
+            plt.savefig(path_to_save / f"{name}_Y.png")
+            plt.clf()
+            print("Graph 4 Y done")
+        except Exception as e:
+            print(e)
+
+    def graph4_3D(result_dict: dict, name: str, path_to_save: pathlib.Path):
+        color = {"std": "r", "long": "b", "canard": "g"}
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+
+        def rotate(angle):
+            ax.view_init(azim=angle)
+
+        for key in result_dict:
+            for i in range(len(result_dict[key])):
+                label = result_dict[key][i]["label"].split("/")
+                for j in range(len(result_dict[key][i]["x"])):
+                    ax.scatter(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        s=1,
+                        color=color[key],
+                        marker="x",
+                    )
+                    ax.text(
+                        result_dict[key][i]["x"][j][0],
+                        result_dict[key][i]["x"][j][1],
+                        result_dict[key][i]["y"][j][1],
+                        f"plan n°{label[2]}",
+                        fontsize=6,
+                    )
+        ax.set_xlabel("Distance (cm)")
+        ax.set_ylabel("X (cm)")
+        ax.set_zlabel("Y (cm)")
+        red_patch = mpatches.Patch(color="red", label="std")
+        blue_patch = mpatches.Patch(color="blue", label="long")
+        green_patch = mpatches.Patch(color="green", label="canard")
+        ax.legend(handles=[red_patch, blue_patch, green_patch])
+        ax.set_title(f"Vortex position in the 3D space for $i$ = {key}° and $b$ = 10°")
+        # rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0, 362, 2), interval=100)
+        # rot_animation.save(path_to_save / f"rotation_{name}_3D.gif", dpi=100, writer="imagemagick")
+        plt.savefig(path_to_save / f"{name}_3D.png")
+        ax.clear()
+        print("Graph 4 3D done")
+        return None
+    
+    # R = 15mm -> 3 cm de diamètre
+    
 
 
 if __name__ == "__main__":
+    # Calibration
     calibration_dataframe = Calibration.driver(iteration=False)
+    # Analysis
+    iteration_images = False
+    data_dict = {}
+    if iteration_images:
+        for path in list_of_images_path:
+            result_dict = Analysis.driver(path, calibration_dataframe)
+            dataframe = Analysis.save_to_df(result_dict)
+            Analysis.save_to_pickle(
+                dataframe, path_to_debug / f"result_{path.stem}.pkl"
+            )
+            print("Done")
+    else:
+        for path in list_of_images_path:
+            result_df = Analysis.load_to_df(path_to_debug / f"result_{path.stem}.pkl")
+            data_dict[path.stem] = result_df
+    # Debug
+    for key in data_dict.keys():
+        data_dict[key].to_string(path_to_debug / f"debug_{key}.txt")
 
-    for path in list_of_images_path:
-        result_dict = Analysis.driver(path, calibration_dataframe)
-        dataframe = Analysis.save_to_df(result_dict)
-        Analysis.save_to_pickle(dataframe, path / f"result_{path.stem}.pkl")
-        print("Done")
+    # Post-processing
+    Nx = 4928
+    Ny = 3264
+    conversion = PostProcessing.get_conversion(Nx, Ny)
+    # structure result_dict incidence = {15: [point1, point2, ...], 20: [point1, point2, ...], 25: [point1, point2, ...]}
+    # structure result_dict dérapage = {0: [point1, point2, ...], 5: [point1, point2, ...], 10: [point1, point2, ...]}
+    # graphe 1 : évolution position du tourbillon sur l'avion à 15 / 20 / 25 ° d'incidence configuration standard
+    result_dict_incidence_std = PostProcessing.prepare_points(
+        data_dict["incidence_std"], conversion, 0
+    )
+    generate_graph1 = False
+    if generate_graph1:
+        PostProcessing.graph1_2D(
+            result_dict_incidence_std, "incidence_std", path_to_final
+        )
+        PostProcessing.graph1_3D(
+            result_dict_incidence_std, "incidence_std", path_to_final
+        )
+    # graphe 2 : évolution de la position du tourbillon à 20 °, dérapage 0, 5, 10° configuration standard
+    result_dict_derapage_std = PostProcessing.prepare_points(
+        data_dict["derapage_std"], conversion, 1
+    )
+    result_dict_derapage_std["0"] = result_dict_incidence_std["20"]
+    # print(result_dict_derapage_std)
+    generate_graph2 = False
+    if generate_graph2:
+        PostProcessing.graph2_2D(
+            result_dict_derapage_std, "derapage_std", path_to_final
+        )
+        PostProcessing.graph2_3D(
+            result_dict_derapage_std, "derapage_std", path_to_final
+        )
+    # graphe 3 : évolution position du tourbillon sur l'avion à 20° en fonction de la configuration dérapage 0°
+    result_dict_incidence_long = PostProcessing.prepare_points(
+        data_dict["incidence_long"], conversion, 0
+    )
+    result_dict_incidence_canard = PostProcessing.prepare_points(
+        data_dict["incidence_canards"], conversion, 0
+    )
+    result_dict_graph3 = {
+        "std": result_dict_incidence_std["20"],
+        "long": result_dict_incidence_long["20"],
+        "canard": result_dict_incidence_canard["20"],
+    }
+    generate_graph3 = False
+    if generate_graph3:
+        PostProcessing.graph3_2D(result_dict_graph3, "dispositifs", path_to_final)
+        PostProcessing.graph3_3D(result_dict_graph3, "dispositifs", path_to_final)
+
+    # graphe 4 : évolution de la position du tourbillon en fonction de la configuration à braquage 10°
+    result_dict_derapage_long = PostProcessing.prepare_points(
+        data_dict["derapage_long"], conversion, 1
+    )
+    result_dict_derapage_canard = PostProcessing.prepare_points(
+        data_dict["derapage_canards"], conversion, 1
+    )
+    result_dict_graph4 = {
+        "std": result_dict_derapage_std["10"],
+        "long": result_dict_derapage_long["10"],
+        "canard": result_dict_derapage_canard["10"],
+    }
+    generate_graph4 = True
+    if generate_graph4:
+        PostProcessing.graph4_2D(
+            result_dict_graph4, "dispositifs_derapage", path_to_final
+        )
+        PostProcessing.graph4_3D(
+            result_dict_graph4, "dispositifs_derapage", path_to_final
+        )
+
