@@ -1,0 +1,19 @@
+[paths]
+# Path to the various image folders
+path_to_calibration = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/calibration/"
+path_to_camera_calibration = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/camera_calibration/"
+path_to_raw = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/"
+path_to_final = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/final/"
+# Path to the debug folder where all intermediate graphs will be saved
+path_to_debug = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/debug/"
+[measures_calibration]
+# Position of the calibration marks for the distance
+pic0 = 0
+pic1 = 2.7
+pic2 = 5.5
+pic3 = 9.9
+pic4 = 14.1
+pic5 = 17.7
+pic6 = 20.8
+pic7 = 23.8
+pic8 = 28.3
