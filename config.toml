@@ -1,11 +1,13 @@
+[parameters]
+# TODO : implement this feature
 [paths]
 # Path to the various image folders
-path_to_calibration = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/calibration/"
-path_to_camera_calibration = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/camera_calibration/"
-path_to_raw = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/raw/"
-path_to_final = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/final/"
+path_to_calibration = "./images/raw/calibration/"
+path_to_camera_calibration = ".images/raw/camera_calibration/"
+path_to_raw = "./images/raw/"
+path_to_final = "./images/final/"
 # Path to the debug folder where all intermediate graphs will be saved
-path_to_debug = "/home/nlesquoy/Documents/Cours/EAEP-209/processing/images/debug/"
+path_to_debug = "./images/debug/"
 [measures_calibration]
 # Position of the calibration marks for the distance
 pic0 = 0
