@@ -1,34 +1,27 @@
 # Standard Python libraries
+import sys
 import os
-import contextlib
+# Robust import of a TOML-parser
+if sys.version_info < (3, 10):
+    import tomli as tomllib
+else:
+    import tomllib
 import pathlib
-import tomllib
 
 # Third party libraries
+import pandas as pd
 
 # Local libraries
+sys.path.append(os.path.join(os.path.dirname(__file__), '../utils')) 
 import operations
-
-# Constants
+import calibration
 
 # Configuration
+with open("config.toml", "rb") as f:
+    config = tomllib.load(f)
 
-@contextlib.contextmanager
-def working_directory(path):
-    """Changes working directory and returns to previous on exit."""
-    prev_cwd = pathlib.Path.cwd()
-    os.chdir(path)
-    try:
-        print("1")
-        with open("../config.toml", "rb") as f:
-            config = tomllib.load(f)
-        yield config
-    finally:
-        print("2")
-        os.chdir(prev_cwd)
-
-config = working_directory("src")
-print(config)
+# config = working_directory("src")
+# print(config)
 
 # Path definitions
 """
@@ -37,18 +30,30 @@ print(config)
     - path_to_debug: Path to the folder containing the intermediary files used for debugging.
     - path_to_final: Path to the folder containing the final images.
 """
-path_to_calibration = pathlib.Path(config["paths"]["path_to_calibration"])
-path_to_camera_calibration = pathlib.Path(config["paths"]["path_to_camera_calibration"])
-path_to_debug = pathlib.Path(config["paths"]["path_to_debug"])
-path_to_raw = pathlib.Path(config["paths"]["path_to_raw"])
-path_to_final = pathlib.Path(config["paths"]["path_to_final"])
+PATH_TO_CALIBRATION = pathlib.Path(config["paths"]["path_to_calibration"])
+PATH_TO_CAMERA_CALIBRATION = pathlib.Path(
+    config["paths"]["path_to_camera_calibration"])
+PATH_TO_DEBUG = pathlib.Path(config["paths"]["path_to_debug"])
+PATH_TO_RAW = pathlib.Path(config["paths"]["path_to_raw"])
+PATH_TO_FINAL = pathlib.Path(config["paths"]["path_to_final"])
 # Positions of the calibration points on the test bench
-calibration_positions = config["measures_calibration"]
+CALIBRATION_POSITIONS = config["measures_calibration"]
+# List of paths to the raw images
+PATH_TO_RAW_IMAGES_FOLDER = [
+    PATH_TO_RAW / "incidence_std",
+    PATH_TO_RAW / "derapage_std",
+    PATH_TO_RAW / "incidence_long",
+    PATH_TO_RAW / "derapage_long",
+    PATH_TO_RAW / "incidence_canards",
+    PATH_TO_RAW / "derapage_canards",
+]
+PATH_TO_ENDUIT = PATH_TO_RAW / "enduit"
 
+if __name__ == "__main__":
 
-
-class Calibration:
-    pass
-
-class CameraCalibration:
-    pass
+    # test = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
+    # dataframe = calibration.ImageCalibration.create_reference_dataframe(test)
+    # operations.FileOperations.save_dataframe_to_pickle(dataframe, PATH_TO_DEBUG / "image_calibration.pkl")
+    # print(operations.FileOperations.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl"))
+    test_verif = calibration.ImageCalibrationVerification(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS, [])
+    print(calibration.ImageCalibrationVerification.check_reference_points(test_verif))
