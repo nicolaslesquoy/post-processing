@@ -51,9 +51,10 @@ PATH_TO_ENDUIT = PATH_TO_RAW / "enduit"
 
 if __name__ == "__main__":
 
-    # test = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
-    # dataframe = calibration.ImageCalibration.create_reference_dataframe(test)
-    # operations.FileOperations.save_dataframe_to_pickle(dataframe, PATH_TO_DEBUG / "image_calibration.pkl")
-    # print(operations.FileOperations.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl"))
-    test_verif = calibration.ImageCalibrationVerification(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS, [])
-    print(calibration.ImageCalibrationVerification.check_reference_points(test_verif))
+    test = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
+    dataframe = calibration.ImageCalibration.create_reference_dataframe(test)
+    operations.FileOperations.save_dataframe_to_pickle(dataframe, PATH_TO_DEBUG / "image_calibration.pkl")
+    df = operations.FileOperations.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl")
+    df.to_string("test.txt")
+    # test_verif = calibration.ImageCalibrationVerification(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS, [])
+    # print(calibration.ImageCalibrationVerification.check_reference_points(test_verif))

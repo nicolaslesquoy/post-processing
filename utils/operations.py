@@ -39,3 +39,27 @@ class FileOperations:
         """Load the dataframe from a pickle file."""
         dataframe = pd.read_pickle(path_to_file)
         return dataframe
+    
+class MathOperations:
+
+    def compute_r2(xdata, ydata, func, popt):
+        residuals = ydata - func(xdata, *popt)
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((ydata - np.mean(ydata)) ** 2)
+        r2 = 1 - (ss_res / ss_tot)
+        return r2
+    
+class ImageOperations:
+
+# def translate_points(points, a, b):
+#     translated_points = []
+#     for point in points:
+#         x = point[0] - a
+#         y = point[1] - b
+#         translated_points.append([x, y])
+#     return translated_points
+    def convert_coordinates(coordinates: Coordinates, dx: int, dy: int):
+        return [[x - dx, y - dy] for x, y in coordinates]
+
+    def refine_position(x: float, y: float, dx: int, dy: int):
+        pass
