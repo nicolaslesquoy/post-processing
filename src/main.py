@@ -14,7 +14,8 @@ import pandas as pd
 # Local libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), '../utils')) 
 import operations
-import calibration
+import warp
+import analysis
 
 # Configuration
 with open("config.toml", "rb") as f:
@@ -51,10 +52,14 @@ PATH_TO_ENDUIT = PATH_TO_RAW / "enduit"
 
 if __name__ == "__main__":
 
-    test = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
-    dataframe = calibration.ImageCalibration.create_reference_dataframe(test)
-    operations.FileOperations.save_dataframe_to_pickle(dataframe, PATH_TO_DEBUG / "image_calibration.pkl")
+    # test = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
+    # dataframe = calibration.ImageCalibration.create_reference_dataframe(test)
+    # operations.FileOperations.save_dataframe_to_pickle(dataframe, PATH_TO_DEBUG / "image_calibration.pkl")
     df = operations.FileOperations.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl")
     df.to_string("test.txt")
     # test_verif = calibration.ImageCalibrationVerification(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS, [])
     # print(calibration.ImageCalibrationVerification.check_reference_points(test_verif))
+
+    # Analysis test
+    result_dict = analysis.Analysis.driver(PATH_TO_RAW_IMAGES_FOLDER[0], df)
+

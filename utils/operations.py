@@ -18,6 +18,7 @@ class CalibrationOperations:
         return sorted(coords, key=lambda coord: (-135 - np.degrees(np.arctan2(*tuple(map(operator.sub, coord, center))[::-1]))) % 360)
 
     def create_destination_points(Nx: int, Ny: int, dx: int, dy: int) -> NumpyArray:
+        #! TODO : put dx and dy as parameters in config.toml
         center = [Nx / 2, Ny / 2]
         p1,p2,p3,p4 = [center[0] + dx, center[1] + dy], [center[0] - dx, center[1] + dy], [center[0] - dx, center[1] - dy], [center[0] + dx, center[1] - dy]
         return np.array(CalibrationOperations.order_points_clockwise([p1, p2, p3, p4]), dtype=np.float32)
