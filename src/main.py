@@ -10,12 +10,21 @@ import pathlib
 
 # Third party libraries
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.widgets import RectangleSelector
+import numpy as np
+import cv2
 
 # Local libraries
 sys.path.append(os.path.join(os.path.dirname(__file__), '../utils')) 
-import operations
-import warp
-import analysis
+from operations import FileOperations as fop
+from operations import CalibrationOperations as cop
+import calibration
+from warp import Warp
+
+# Custom types
+from custom_types import Path, Dataframe, NumpyArray
+
 
 # Configuration
 with open("config.toml", "rb") as f:
@@ -50,16 +59,94 @@ PATH_TO_RAW_IMAGES_FOLDER = [
 ]
 PATH_TO_ENDUIT = PATH_TO_RAW / "enduit"
 
+class Analysis:
+    def draw_rectangle(name: str, img: NumpyArray):
+        fig, ax = plt.subplots()
+        ax.imshow(img)
+        var_data = []
+
+        def select_callback(eclick, erelease):
+            x1, y1 = eclick.xdata, eclick.ydata
+            x2, y2 = erelease.xdata, erelease.ydata
+            rect = plt.Rectangle(
+                (min(x1, x2), min(y1, y2)),
+                np.abs(x1 - x2),
+                np.abs(y1 - y2),
+                facecolor="none",
+                edgecolor="red",
+                linewidth=2,
+            )
+            ax.add_patch(rect)
+            nonlocal var_data
+            var_data.append({"a": [x1, y1], "b": [x2, y2]})
+            # print("({:.3f}, {:.3f}) --> ({:.3f}, {:.3f})".format(x1, y1, x2, y2))
+
+        plt.title(name + " - Select the rectangle")
+        rs = RectangleSelector(
+            ax,
+            select_callback,
+            useblit=False,
+            button=[1],
+            minspanx=5,
+            minspany=5,
+            spancoords="pixels",
+            interactive=True,
+        )
+
+        plt.show()
+
+        if len(var_data) == 0:
+            return None
+        else:
+            return var_data
+
+    def get_center(name: str, img: NumpyArray):
+        fig, ax = plt.subplots()
+        ax.imshow(img)
+        # Variable declaration
+        var_data = []
+
+        def onclick(event):
+            nonlocal var_data
+            var_data.append([event.xdata, event.ydata])
+            ax.plot(event.xdata, event.ydata, ".", c="b")
+            fig.canvas.draw()
+
+        plt.title(name + " - Select the center")
+        cid = fig.canvas.mpl_connect("button_press_event", onclick)
+        plt.show()
+        if len(var_data) == 0:
+            return None
+        else:
+            return var_data[0]
+
+    def driver(path_to_folder: Path, calibration_dataframe: Dataframe) -> Dataframe:
+        """Driver function for the analysis process."""
+        result_dict = {}
+        for path_to_file in path_to_folder.glob("*.jpg"):
+            warped = Warp.warp(path_to_file, calibration_dataframe)
+            result_int = {}
+            try:
+                name = path_to_file.stem + "-" + path_to_folder.stem
+                result_int["name"] = name
+                result_int["rectangle"] = Analysis.draw_rectangle(name, warped)
+                result_int["center"] = Analysis.get_center(name, warped)
+                result_dict[name] = result_int
+            except:
+                pass
+        return fop.save_dict_as_dataframe(result_dict)
+    
+class GlobalDriver:
+    pass
+
+
 if __name__ == "__main__":
 
-    # test = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
-    # dataframe = calibration.ImageCalibration.create_reference_dataframe(test)
-    # operations.FileOperations.save_dataframe_to_pickle(dataframe, PATH_TO_DEBUG / "image_calibration.pkl")
-    df = operations.FileOperations.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl")
-    df.to_string("test.txt")
-    # test_verif = calibration.ImageCalibrationVerification(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS, [])
-    # print(calibration.ImageCalibrationVerification.check_reference_points(test_verif))
-
-    # Analysis test
-    result_dict = analysis.Analysis.driver(PATH_TO_RAW_IMAGES_FOLDER[0], df)
-
+    # calibration_init = calibration.ImageCalibration(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS)
+    # calibration_dataframe = calibration.ImageCalibration.create_reference_dataframe(calibration_init)
+    # fop.save_dataframe_to_pickle(calibration_dataframe, calibration_init.path_to_output_file)
+    df = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl")
+    # df.to_string(PATH_TO_DEBUG / "image_calibration.txt")
+    # # test_verif = calibration.ImageCalibrationVerification(PATH_TO_CALIBRATION, PATH_TO_DEBUG / "image_calibration.pkl", CALIBRATION_POSITIONS, [])
+    # # print(calibration.ImageCalibrationVerification.check_reference_points(test_verif))
+    # Analysis.driver(PATH_TO_RAW_IMAGES_FOLDER[0], df)

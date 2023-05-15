@@ -30,21 +30,21 @@ class Warp:
         """Get the reference points from the dataframe."""
         try:
             reference = calibration_dataframe[calibration_dataframe["name"] == image_name].to_dict(orient="records")[0]
-            return np.array([reference["0"], reference["1"], reference["2"], reference["3"]], dtype=np.float32)
+            return np.array([reference[0], reference[1], reference[2], reference[3]], dtype=np.float32)
         except:
             return None
     
-    def warp(path_to_image: Path, calibration_dataframe: Dataframe, rotate: bool = True):
+    def warp(path_to_image: Path, calibration_dataframe: Dataframe, rotate: bool = True, resize: bool = True):
         """Warp the image."""
-        img = fop.open_image_as_array(path_to_image)
-        img = cv2.resize(img, (0, 0), fx=0.5, fy=0.5)
+        img = cv2.imread(str(path_to_image))
+        if resize:
+            img = cv2.resize(img, (0, 0), fx=0.5, fy=0.5)
         if rotate:
             img = cv2.rotate(img, cv2.ROTATE_180)
         dst_points = cop.create_destination_points(img.shape[1], img.shape[0], 500, 500)
-        reference_points = Warp.get_reference_points(path_to_image.stem, calibration_dataframe)
-        try:
-            M = cv2.findHomography(reference_points, dst_points)
-            warped = cv2.warpPerspective(img, M, (img.shape[1], img.shape[0]))
-            return warped
-        except:
-            return None
+        print(dst_points)
+        label = cop.read_file_name(path_to_image)
+        ref_points = Warp.get_reference_points(label[2], calibration_dataframe)
+        M, mask = cv2.findHomography(ref_points, dst_points, cv2.RANSAC, 5.0)
+        warped = cv2.warpPerspective(img, M, (img.shape[1], img.shape[0]))
+        return warped
