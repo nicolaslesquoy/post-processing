@@ -117,15 +117,73 @@ class MathOperations:
 
 class ImageOperations:
 
-    # def translate_points(points, a, b):
-    #     translated_points = []
-    #     for point in points:
-    #         x = point[0] - a
-    #         y = point[1] - b
-    #         translated_points.append([x, y])
-    #     return translated_points
     def convert_coordinates(coordinates: Coordinates, dx: int, dy: int):
         return [[x - dx, y - dy] for x, y in coordinates]
 
     def refine_position(x: float, y: float, dx: int, dy: int):
         pass
+
+
+class LineBuilder(object):
+
+    def __init__(self, line):
+        canvas = line.figure.canvas
+        self.canvas = canvas
+        self.line = line
+        self.axes = line.axes
+        self.xs = list(line.get_xdata())
+        self.ys = list(line.get_ydata())
+        self.epsilon = 50
+    
+        self.ind = None
+    
+        canvas.mpl_connect('button_press_event', self.button_press_callback)
+        canvas.mpl_connect('button_release_event', self.button_release_callback)
+        canvas.mpl_connect('motion_notify_event', self.motion_notify_callback)
+
+    def get_ind(self, event):
+        x = np.array(self.line.get_xdata())
+        y = np.array(self.line.get_ydata())
+        d = np.sqrt((x-event.xdata)**2 + (y - event.ydata)**2)
+        if min(d) > self.epsilon:
+            return None
+        if d[0] < d[1]:
+            return 0
+        else:
+            return 1
+
+    def button_press_callback(self, event):
+        if event.button != 1:
+            return
+        self.ind = self.get_ind(event)
+        print(self.ind)
+    
+        self.line.set_animated(True)
+        self.canvas.draw()
+        self.background = self.canvas.copy_from_bbox(self.line.axes.bbox)
+    
+        self.axes.draw_artist(self.line)
+        self.canvas.blit(self.axes.bbox)
+
+    def button_release_callback(self, event):
+        if event.button != 1:
+            return
+        self.ind = None
+        self.line.set_animated(False)
+        self.background = None
+        self.line.figure.canvas.draw()
+
+    def motion_notify_callback(self, event):
+        if event.inaxes != self.line.axes:
+            return
+        if event.button != 1:
+            return
+        if self.ind is None:
+            return
+        self.xs[self.ind] = event.xdata
+        self.ys[self.ind] = event.ydata
+        self.line.set_data(self.xs, self.ys)
+    
+        self.canvas.restore_region(self.background)
+        self.axes.draw_artist(self.line)
+        self.canvas.blit(self.axes.bbox)

@@ -5,67 +5,28 @@ import pathlib
 import numpy as np
 from scipy.optimize import curve_fit
 import pandas as pd
+from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 import cv2
 
 # Local modules
+from warp import Warp
 from operations import CalibrationOperations as cop
 from operations import FileOperations as fop
 from operations import MathOperations as mop
+from operations import LineBuilder
 
 # Custom types
-from custom_types import Path, Dataframe, DictPoints, Coordinates, CalibrationVerification
+from custom_types import Path, Dataframe, DictPoints, NumpyArray
 
 
 class ImageCalibration:
-    """
-    This class is used to define the calibration points used to unwarp the raw images.
-    """
-
-    def __init__(
-        self,
-        path_to_calibration_images: Path,
-        path_to_output_file: Path,
-        calibration_positions: DictPoints,
-    ) -> None:
-        """Class constructor.
-
-        Parameters
-        ----------
-        path_to_calibration_images : Path
-            Path to the folder containing the calibration images.
-        path_to_output_file : Path
-            Path to where the output file will be saved.
-        calibration_positions : DictPoints
-            Positions of the calibration points on the test bench.
-        """
-        self.path_to_calibration_images = path_to_calibration_images
-        self.path_to_output_file = path_to_output_file
-        self.calibration_positions = calibration_positions
-
-    def __repr__(self) -> str:
-        """Class representation for debugging/logging purposes.
-
-        Returns
-        -------
-        str
-            Class representation
-        """
-        return f"ImageCalibration(path_to_calibration_images={self.path_to_calibration_images}, path_to_output_file={self.path_to_output_file} calibration_positions={self.calibration_positions})"
-
-    def __str__(self) -> str:
-        """Pretty print of the class representation for debugging purposes and interface.
-
-        Returns
-        -------
-        str
-            Pretty print of the class representation.
-        """
-        return self.__repr__
+    """This class is used to calibrate the images."""
 
     def get_reference_points(
-        path_to_image: Path, rotate: bool = True
+        path_to_image: Path, rotate: bool = True, resize: bool = True
     ) -> list[list[float]] | None:
         """This method is used to get the reference points from an image.
 
@@ -86,9 +47,10 @@ class ImageCalibration:
         img = fop.open_image_as_array(path_to_image)
         if rotate:
             img = np.flipud(img)
-        img = cv2.resize(
-            img, (0, 0), fx=0.5, fy=0.5
-        )  # Lower the resolution to speed up the process
+        if resize:
+            img = cv2.resize(
+                img, (0, 0), fx=0.5, fy=0.5
+            )  # Lower the resolution to speed up the process
         # Plot generation
         fig, ax = plt.subplots()
         ax.set_title(name + " - Select the reference points.")
@@ -112,7 +74,11 @@ class ImageCalibration:
         else:
             return cop.order_points_clockwise(var_data)
 
-    def create_reference_dataframe(self) -> Dataframe:
+    def create_reference_dataframe(
+        path_to_calibration_images: Path,
+        calibration_positions: DictPoints,
+        resize: bool = True,
+    ) -> Dataframe:
         """This method is used to create the reference dataframe.
 
         Returns
@@ -128,8 +94,8 @@ class ImageCalibration:
         - 0, 1, 2, 3: x and y coordinates of the reference points
         """
         data = {
-            path.stem: ImageCalibration.get_reference_points(path)
-            for path in self.path_to_calibration_images.glob("*.jpg")
+            path.stem: ImageCalibration.get_reference_points(path, resize=resize)
+            for path in path_to_calibration_images.glob("*.jpg")
             if path.is_file()
         }
         data = {key: value for key, value in data.items() if value is not None}
@@ -137,128 +103,188 @@ class ImageCalibration:
         dataframe = pd.DataFrame.from_dict(data, orient="index")
         dataframe["name"] = sorted(dataframe.index)
         dataframe["distance"] = [
-            self.calibration_positions[f"pic{name}"] for name in dataframe.index
+            calibration_positions[f"pic{name}"] for name in dataframe.index
         ]
         return dataframe
 
 
-class ImageCalibrationVerification(ImageCalibration):
+class CenterCalibration:
     """
-    This class defines the methods used to verify the calibration of the camera.
+    This class is used to define the center of the model for further analysis.
     """
-    def __init__(
-        self,
-        path_to_calibration_images: Path,
-        path_to_output_file: Path,
-        calibration_positions: DictPoints,
-        points_of_interest: list[str],
-    ) -> None:
-        """Class constructor.
+
+    def prepare_image(
+        path_to_image: Path,
+        reference_dataframe: Dataframe,
+        rotate: bool = True,
+        resize: bool = False,
+    ) -> NumpyArray:
+        """This method is used to prepare the image for the center calibration.
 
         Parameters
         ----------
-        path_to_calibration_images : Path
-            Path to the folder containing the calibration images.
-        path_to_output_file : Path
-            Path to where the output file will be saved.
-        calibration_positions : DictPoints
-            Positions of the calibration points on the test bench.
-        points_of_interest : list[str]
-            List of the points of interest that needs to be modified.
+        path_to_image : Path
+            Path to the image.
+        reference_dataframe : Dataframe
+            Reference dataframe for calibration data.
+        rotate : bool, optional
+            If set to true, the image is rotated, by default True
+        resize : bool, optional
+            If set to true, the image is resized, by default False
+
+        Returns
+        -------
+        NumpyArray
+            Prepared image.
         """
-        super().__init__(
-            path_to_calibration_images, path_to_output_file, calibration_positions
+        img = Warp.warp(
+            path_to_image, reference_dataframe, rotate=rotate, resize=resize
         )
-        self.points_of_interest = points_of_interest
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = cv2.addWeighted(img, 3, np.zeros(img.shape, img.dtype), 0, 0)
+        return img
 
-    def __repr__(self) -> str:
-        return f"ImageCalibrationVerification(path_to_calibration_images={self.path_to_calibration_images}, path_to_output_file={self.path_to_output_file} calibration_positions={self.calibration_positions}, points_of_interest={self.points_of_interest})"
+    def launch(img: NumpyArray) -> dict[str, list[np.float32]]:
+        """This method is used to launch the center calibration.
 
-    def __str__(self) -> str:
-        return self.__repr__
-    
-    def check_reference_points(
-        self,
-    ) -> dict[str, dict[str, list[list[float]]]]:
-        dataframe = fop.load_pickle_to_dataframe(self.path_to_output_file)
-        regression_points = {f"p{i}": [] for i in range(4)}
-        regression_points_x_distance = {f"p{i}": [] for i in range(4)}
-        regression_points_y_distance = {f"p{i}": [] for i in range(4)}
-        r2_regression_points = {f"p{i}": [] for i in range(4)}
-        colors = {"0": "b", "1": "r", "2": "g", "3": "y"}
-        for column in dataframe.columns:
-            if column not in ["name", "distance"]:
-                column_dict = dataframe[column].to_dict()
-                column_num = dataframe.columns.get_loc(column)
-                for key, value in column_dict.items():
-                    regression_points[f"p{column_num}"].append(
-                        np.array(value, dtype=np.float32)
-                    )
-                    regression_points_x_distance[f"p{column_num}"].append(
-                        np.array(
-                            [dataframe["distance"][key], value[0]], dtype=np.float32
-                        )
-                    )
-                    regression_points_y_distance[f"p{column_num}"].append(
-                        np.array(
-                            [dataframe["distance"][key], value[1]], dtype=np.float32
-                        )
-                    )
-                    plt.plot(value[0], value[1], ".", c=colors[str(column_num)])
-                    plt.annotate(
-                        key,
-                        (value[0], value[1]),
-                        color=colors[str(column_num)],
-                        fontsize=6,
-                        textcoords="offset points",
-                        xytext=(5, 5),
-                    )
+        Parameters
+        ----------
+        img : NumpyArray
+            Prepared image.
 
-        # Regression on the points
-        def func(x, a, b):
-            return a * x + b
+        Returns
+        -------
+        dict[str, list[np.float32]]
+            Dictionary containing the reference lines.
+        """
+        fig, ax = plt.subplots()
+        ax.imshow(img)
 
-        for i in range(4):
-            xdata = np.array(
-                [point[0] for point in regression_points[f"p{i}"]], dtype=np.float32
-            )
-            ydata = np.array(
-                [point[1] for point in regression_points[f"p{i}"]], dtype=np.float32
-            )
-            popt, pcov = curve_fit(func, xdata, ydata)
-            r2 = mop.compute_r2(xdata, ydata, func, popt)
-            r2_regression_points[f"p{i}"].append(r2)
-            plt.plot(xdata, func(xdata, *popt), c=colors[str(i)], linestyle="--")
-        plt.title("Reference points")
-        plt.xlabel("x [px]")
-        plt.ylabel("y [px]")
-        patches = [
-            mpatches.Patch(
-                color=colors[str(i)],
-                label=f"p{i+1} - $R^2$ = "
-                + str(np.round(r2_regression_points[f"p{i}"], 5)),
-            )
-            for i in range(4)
-        ]
-        plt.legend(handles=patches)
-        plt.savefig
-        plt.clf()
+        line = Line2D([500, 300], [500, 300], marker="o", markerfacecolor="blue")
+        ax.add_line(line)
+        linebuilder = LineBuilder(line)
+
+        ax.set_title("click to create lines")
+        plt.show()
+        x_data = linebuilder.xs
+        y_data = linebuilder.ys
+        return np.array(
+            [[x_data[0], y_data[0]], [x_data[1], y_data[1]]], dtype=np.float32
+        )
+
+    def get_reference_lines(img: NumpyArray) -> dict[str, list[np.float32]]:
+        """This method is used to get the reference lines.
+
+        Parameters
+        ----------
+        img : NumpyArray
+            Prepared image.
+
+        Returns
+        -------
+        dict[str, list[np.float32]]
+            Dictionary containing the reference lines (slope, slope-intercept value).
+        """
+        wing_line = CenterCalibration.launch(img)
+        body_line1 = CenterCalibration.launch(img)
+        body_line2 = CenterCalibration.launch(img)
         return {
-            "regression_points": regression_points,
-            "regression_points_x_distance": regression_points_x_distance,
-            "regression_points_y_distance": regression_points_y_distance,
-            "r2_regression_points": r2_regression_points,
+            "wing_line": [
+                (wing_line[0][1] - wing_line[1][1])
+                / (wing_line[0][0] - wing_line[1][0]),
+                wing_line[0][1]
+                - (wing_line[0][1] - wing_line[1][1])
+                / (wing_line[0][0] - wing_line[1][0])
+                * wing_line[0][0],
+            ],
+            "body_line1": [
+                (body_line1[0][1] - body_line1[1][1])
+                / (body_line1[0][0] - body_line1[1][0]),
+                body_line1[0][1]
+                - (body_line1[0][1] - body_line1[1][1])
+                / (body_line1[0][0] - body_line1[1][0])
+                * body_line1[0][0],
+            ],
+            "body_line2": [
+                (body_line2[0][1] - body_line2[1][1])
+                / (body_line2[0][0] - body_line2[1][0]),
+                body_line2[0][1]
+                - (body_line2[0][1] - body_line2[1][1])
+                / (body_line2[0][0] - body_line2[1][0])
+                * body_line2[0][0],
+            ],
         }
 
-    # def modify_reference_points(self) -> None:
-    #     dataframe = fop.load_pickle_to_dataframe(self.path_to_output_file)
-    #     for point in self.points_of_interest:
-    #         new_result = ImageCalibration.get_reference_points(
-    #             self.path_to_calibration_images / f"{point}.jpg"
-    #         )
-    #         if new_result is not None:
-    #             dataframe.loc[point] = new_result
-    #     fop.save_dataframe_to_pickle(dataframe, self.path_to_output_file)
-    #     return None
+    def intersection_points(
+        points_dict: dict[str, list[np.float32]]
+    ) -> list[np.float32]:
+        """This method is used to get the intersection points of the reference lines.
 
-    
+        Parameters
+        ----------
+        points_dict : dict[str, list[np.float32]]
+            Dictionary containing the reference lines.
+
+        Returns
+        -------
+        list[np.float32]
+            Coordinates of the center of the model.
+        """
+        wing_line = points_dict["wing_line"]
+        body_line1 = points_dict["body_line1"]
+        body_line2 = points_dict["body_line2"]
+        intersection_with_wing_1 = [
+            (body_line1[1] - wing_line[1]) / (wing_line[0] - body_line1[0]),
+            wing_line[0]
+            * (body_line1[1] - wing_line[1])
+            / (wing_line[0] - body_line1[0])
+            + wing_line[1],
+        ]
+        intersection_with_wing_2 = [
+            (body_line2[1] - wing_line[1]) / (wing_line[0] - body_line2[0]),
+            wing_line[0]
+            * (body_line2[1] - wing_line[1])
+            / (wing_line[0] - body_line2[0])
+            + wing_line[1],
+        ]
+        return (intersection_with_wing_2[0] + intersection_with_wing_1[0]) / 2, (
+            intersection_with_wing_2[1] + intersection_with_wing_1[1]
+        ) / 2
+
+    def create_reference_dataframe(
+        path_to_folder: Path,
+        calibration_dataframe: Dataframe,
+        rotate: bool = True,
+        resize: bool = False,
+    ) -> Dataframe:
+        """This method is used to create the reference dataframe.
+
+        Parameters
+        ----------
+        path_to_folder : Path
+            Path to the calibration folder.
+        calibration_dataframe : Dataframe
+            Dataframe containing the calibration data.
+        rotate : bool, optional
+            If set to true, the images are rotated, by default True
+        resize : bool, optional
+            if set to true, the images are resized, by default False
+
+        Returns
+        -------
+        Dataframe
+            Dataframe containing the reference data.
+        """
+        result_dict = {}
+        for path in path_to_folder.glob("*.jpg"):
+            img = CenterCalibration.prepare_image(
+                path, calibration_dataframe, rotate=rotate, resize=resize
+            )
+            points_dict = CenterCalibration.get_reference_lines(img)
+            intersection_points = CenterCalibration.intersection_points(points_dict)
+            result_dict[path.stem] = intersection_points
+        data = {key: value for key, value in data.items() if value is not None}
+        data = {key: data[key] for key in sorted(data.keys())}
+        dataframe = pd.DataFrame.from_dict(data, orient="index")
+        dataframe["name"] = sorted(dataframe.index)
+        return dataframe

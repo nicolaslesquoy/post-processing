@@ -42,9 +42,8 @@ class Warp:
         if rotate:
             img = cv2.rotate(img, cv2.ROTATE_180)
         dst_points = cop.create_destination_points(img.shape[1], img.shape[0], 500, 500)
-        print(dst_points)
         label = cop.read_file_name(path_to_image)
         ref_points = Warp.get_reference_points(label[2], calibration_dataframe)
-        M, mask = cv2.findHomography(ref_points, dst_points, cv2.RANSAC, 5.0)
+        M = cv2.getPerspectiveTransform(ref_points, dst_points)
         warped = cv2.warpPerspective(img, M, (img.shape[1], img.shape[0]))
         return warped

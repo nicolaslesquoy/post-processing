@@ -3,7 +3,6 @@
 [paths]
 # Path to the various image folders
 path_to_calibration = "../images/raw/calibration/"
-path_to_camera_calibration = "../images/raw/camera_calibration/"
 path_to_raw = "../images/raw"
 path_to_final = "../images/final/"
 # Path to the debug folder where all intermediate graphs will be saved
