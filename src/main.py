@@ -115,16 +115,37 @@ class GlobalDriver:
         self.rotate = rotate
         self.resize = resize
 
-    def calibrate(self) -> bool:
+    def calibrate(self, calibrate_center: bool = False) -> bool:
         """This method is used to calibrate the images."""
         # Calibration
         if self.calibrate_flag:
+            print("Image Calibration")
             image_calibration_dataframe = cc.create_reference_dataframe(self.path_to_calibration_folder[0], self.calibration_positions)
-            center_calibration_dataframe = ic.create_reference_dataframe(self.path_to_calibration_folder[1], self.calibration_positions)
-            fop.save_dataframe_to_pickle(image_calibration_dataframe, self.path_to_debug / "image_calibration.pkl")
-            fop.save_dataframe_to_pickle(center_calibration_dataframe, self.path_to_debug / "center_calibration.pkl")
+            if calibrate_center:
+                print("Center Calibration")
+                center_calibration_dataframe = ic.create_reference_dataframe(self.path_to_calibration_folder[1], self.calibration_positions)
+                fop.save_dataframe_to_pickle(image_calibration_dataframe, self.path_to_debug / "image_calibration.pkl")
+                fop.save_dataframe_to_pickle(center_calibration_dataframe, self.path_to_debug / "center_calibration.pkl")
             return True
         else:
             return False
         
+if __name__ == "__main__":
+    # Create the class
+    global_driver = GlobalDriver(
+        path_to_calibration_folder=PATH_TO_CALIBRATION_IMAGES,
+        path_to_raw_folder=PATH_TO_RAW_IMAGES_FOLDER,
+        path_to_debug=PATH_TO_DEBUG,
+        path_to_final=PATH_TO_FINAL,
+        calibration_positions=CALIBRATION_POSITIONS,
+        calibrate_flag=True,
+        verify_flag=False,
+        analysis_flag=False,
+        graph_flag=False,
+        rotate=True,
+        resize=False
+    )
+
+    # Launch the calibration
+    global_driver.calibrate()
 
