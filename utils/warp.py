@@ -31,7 +31,8 @@ class Warp:
         try:
             reference = calibration_dataframe[calibration_dataframe["name"] == image_name].to_dict(orient="records")[0]
             return np.array([reference[0], reference[1], reference[2], reference[3]], dtype=np.float32)
-        except:
+        except Exception as e:
+            print(e)
             return None
     
     def warp(path_to_image: Path, calibration_dataframe: Dataframe, rotate: bool = True, resize: bool = True):

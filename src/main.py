@@ -125,7 +125,8 @@ class GlobalDriver:
                 fop.save_dataframe_to_pickle(image_calibration_dataframe, self.path_to_debug / "image_calibration.pkl")
             if calibrate_center:
                 print("Center Calibration")
-                center_calibration_dataframe = cc.create_reference_dataframe(self.path_to_calibration_folder[1], self.calibration_positions)
+                calibration_dataframe = fop.load_pickle_to_dataframe(self.path_to_debug / "image_calibration.pkl")
+                center_calibration_dataframe = cc.create_reference_dataframe(self.path_to_calibration_folder[1], calibration_dataframe)
                 fop.save_dataframe_to_pickle(center_calibration_dataframe, self.path_to_debug / "center_calibration.pkl")
             return True
         else:
@@ -148,5 +149,6 @@ if __name__ == "__main__":
     )
 
     # Launch the calibration
-    global_driver.calibrate(calibrate_center=True)
+    # global_driver.calibrate(calibrate_center=True)
+    # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "center_calibration.pkl"))
     # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl"))

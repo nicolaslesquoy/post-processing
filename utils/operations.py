@@ -156,7 +156,6 @@ class LineBuilder(object):
         if event.button != 1:
             return
         self.ind = self.get_ind(event)
-        print(self.ind)
     
         self.line.set_animated(True)
         self.canvas.draw()
