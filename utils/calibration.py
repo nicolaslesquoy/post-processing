@@ -140,9 +140,13 @@ class CenterCalibration:
         img = Warp.warp(
             path_to_image, reference_dataframe, rotate=rotate, resize=resize
         )
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img = cv2.addWeighted(img, 3, np.zeros(img.shape, img.dtype), 0, 0)
-        return img
+        if img is None:
+            return None
+        else:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            img = cv2.addWeighted(img, 3, np.zeros(img.shape, img.dtype), 0, 0)
+            return img
+        
 
     def launch(img: NumpyArray) -> dict[str, list[np.float32]]:
         """This method is used to launch the center calibration.
@@ -280,10 +284,13 @@ class CenterCalibration:
             img = CenterCalibration.prepare_image(
                 path, calibration_dataframe, rotate=rotate, resize=resize
             )
-            points_dict = CenterCalibration.get_reference_lines(img)
-            intersection_points = CenterCalibration.intersection_points(points_dict)
-            result_dict[path.stem] = intersection_points
-        data = {key: value for key, value in data.items() if value is not None}
+            if img is None:
+                pass
+            else:
+                points_dict = CenterCalibration.get_reference_lines(img)
+                intersection_points = CenterCalibration.intersection_points(points_dict)
+                result_dict[path.stem] = intersection_points
+        data = {key: value for key, value in result_dict.items() if value is not None}
         data = {key: data[key] for key in sorted(data.keys())}
         dataframe = pd.DataFrame.from_dict(data, orient="index")
         dataframe["name"] = sorted(dataframe.index)

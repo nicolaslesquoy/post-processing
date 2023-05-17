@@ -44,6 +44,10 @@ class Warp:
         dst_points = cop.create_destination_points(img.shape[1], img.shape[0], 500, 500)
         label = cop.read_file_name(path_to_image)
         ref_points = Warp.get_reference_points(label[2], calibration_dataframe)
-        M = cv2.getPerspectiveTransform(ref_points, dst_points)
-        warped = cv2.warpPerspective(img, M, (img.shape[1], img.shape[0]))
-        return warped
+        if ref_points is None:
+            return None
+        else:
+            ref_points = np.array(ref_points, dtype=np.float32)
+            M = cv2.getPerspectiveTransform(ref_points, dst_points)
+            warped = cv2.warpPerspective(img, M, (img.shape[1], img.shape[0]))
+            return warped
