@@ -148,7 +148,7 @@ class CenterCalibration:
             return img
         
 
-    def launch(img: NumpyArray) -> dict[str, list[np.float32]]:
+    def launch(img: NumpyArray, title: str) -> dict[str, list[np.float32]]:
         """This method is used to launch the center calibration.
 
         Parameters
@@ -168,7 +168,7 @@ class CenterCalibration:
         ax.add_line(line)
         linebuilder = LineBuilder(line)
 
-        ax.set_title("click to create lines")
+        ax.set_title(f"click to create lines - {title}")
         plt.show()
         x_data = linebuilder.xs
         y_data = linebuilder.ys
@@ -189,35 +189,38 @@ class CenterCalibration:
         dict[str, list[np.float32]]
             Dictionary containing the reference lines (slope, slope-intercept value).
         """
-        wing_line = CenterCalibration.launch(img)
-        body_line1 = CenterCalibration.launch(img)
-        body_line2 = CenterCalibration.launch(img)
-        return {
-            "wing_line": [
-                (wing_line[0][1] - wing_line[1][1])
-                / (wing_line[0][0] - wing_line[1][0]),
-                wing_line[0][1]
-                - (wing_line[0][1] - wing_line[1][1])
-                / (wing_line[0][0] - wing_line[1][0])
-                * wing_line[0][0],
-            ],
-            "body_line1": [
-                (body_line1[0][1] - body_line1[1][1])
-                / (body_line1[0][0] - body_line1[1][0]),
-                body_line1[0][1]
-                - (body_line1[0][1] - body_line1[1][1])
-                / (body_line1[0][0] - body_line1[1][0])
-                * body_line1[0][0],
-            ],
-            "body_line2": [
-                (body_line2[0][1] - body_line2[1][1])
-                / (body_line2[0][0] - body_line2[1][0]),
-                body_line2[0][1]
-                - (body_line2[0][1] - body_line2[1][1])
-                / (body_line2[0][0] - body_line2[1][0])
-                * body_line2[0][0],
-            ],
-        }
+        wing_line = CenterCalibration.launch(img, title="wing line")
+        body_line1 = CenterCalibration.launch(img, title="body line 1")
+        body_line2 = CenterCalibration.launch(img, title="body line 2")
+        if wing_line[0][0] == wing_line[1][1]:
+            return None
+        else:
+            return {
+                "wing_line": [
+                    (wing_line[0][1] - wing_line[1][1])
+                    / (wing_line[0][0] - wing_line[1][0]),
+                    wing_line[0][1]
+                    - (wing_line[0][1] - wing_line[1][1])
+                    / (wing_line[0][0] - wing_line[1][0])
+                    * wing_line[0][0],
+                ],
+                "body_line1": [
+                    (body_line1[0][1] - body_line1[1][1])
+                    / (body_line1[0][0] - body_line1[1][0]),
+                    body_line1[0][1]
+                    - (body_line1[0][1] - body_line1[1][1])
+                    / (body_line1[0][0] - body_line1[1][0])
+                    * body_line1[0][0],
+                ],
+                "body_line2": [
+                    (body_line2[0][1] - body_line2[1][1])
+                    / (body_line2[0][0] - body_line2[1][0]),
+                    body_line2[0][1]
+                    - (body_line2[0][1] - body_line2[1][1])
+                    / (body_line2[0][0] - body_line2[1][0])
+                    * body_line2[0][0],
+                ],
+            }
 
     def intersection_points(
         points_dict: dict[str, list[np.float32]]
@@ -260,6 +263,7 @@ class CenterCalibration:
         calibration_dataframe: Dataframe,
         rotate: bool = True,
         resize: bool = False,
+        print: bool = False,
     ) -> Dataframe:
         """This method is used to create the reference dataframe.
 
@@ -290,6 +294,13 @@ class CenterCalibration:
                 points_dict = CenterCalibration.get_reference_lines(img)
                 intersection_points = CenterCalibration.intersection_points(points_dict)
                 result_dict[path.stem] = intersection_points
+                if print:
+                    fig, ax = plt.subplots()
+                    ax.imshow(img)
+                    ax.scatter(intersection_points[0], intersection_points[1], c="r")
+                    ax.set_title(path.stem)
+                    plt.savefig(f"debug/test-{path.stem}.png")
+                    plt.clf()
         data = {key: value for key, value in result_dict.items() if value is not None}
         data = {key: data[key] for key in sorted(data.keys())}
         dataframe = pd.DataFrame.from_dict(data, orient="index")
