@@ -1390,3 +1390,23 @@ class CenterCalibration:
         
     def get_center(data):
         return [(data[0][0] + data[1][0])/2, (data[0][1] + data[1][1])/2]
+
+            def get_center(name: str, img: NumpyArray):
+        fig, ax = plt.subplots()
+        ax.imshow(img)
+        # Variable declaration
+        var_data = []
+
+        def onclick(event):
+            nonlocal var_data
+            var_data.append([event.xdata, event.ydata])
+            ax.plot(event.xdata, event.ydata, ".", c="b")
+            fig.canvas.draw()
+
+        plt.title(name + " - Select the center")
+        cid = fig.canvas.mpl_connect("button_press_event", onclick)
+        plt.show()
+        if len(var_data) == 0:
+            return None
+        else:
+            return var_data[0]

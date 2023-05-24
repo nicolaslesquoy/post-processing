@@ -21,6 +21,7 @@ from operations import LineBuilder
 # Custom types
 from custom_types import Path, Dataframe, DictPoints, NumpyArray
 
+#! WARNING: CENTER CALIBRATION IS NOT WORKING YET
 
 class ImageCalibration:
     """This class is used to calibrate the images."""
@@ -192,34 +193,22 @@ class CenterCalibration:
         wing_line = CenterCalibration.launch(img, title="wing line")
         body_line1 = CenterCalibration.launch(img, title="body line 1")
         body_line2 = CenterCalibration.launch(img, title="body line 2")
-        if wing_line[0][0] == wing_line[1][1]:
+        if wing_line[0][0] == wing_line[1][1] or body_line1[0][0] == body_line1[1][1] or body_line2[0][0] == body_line2[1][1]:
             return None
         else:
             return {
                 "wing_line": [
-                    (wing_line[0][1] - wing_line[1][1])
-                    / (wing_line[0][0] - wing_line[1][0]),
-                    wing_line[0][1]
-                    - (wing_line[0][1] - wing_line[1][1])
-                    / (wing_line[0][0] - wing_line[1][0])
-                    * wing_line[0][0],
+                    (wing_line[1][1] - wing_line[0][1])/ (wing_line[1][0] - wing_line[0][0]),
+                    wing_line[0][1] - (wing_line[1][1] - wing_line[0][1])/ (wing_line[1][0] - wing_line[0][0]) * wing_line[0][0]
                 ],
                 "body_line1": [
-                    (body_line1[0][1] - body_line1[1][1])
-                    / (body_line1[0][0] - body_line1[1][0]),
-                    body_line1[0][1]
-                    - (body_line1[0][1] - body_line1[1][1])
-                    / (body_line1[0][0] - body_line1[1][0])
-                    * body_line1[0][0],
+                    (body_line1[1][1] - body_line1[0][1])/ (body_line1[1][0] - body_line1[0][0]),
+                    body_line1[0][1] - (body_line1[1][1] - body_line1[0][1])/ (body_line1[1][0] - body_line1[0][0]) * body_line1[0][0]
                 ],
                 "body_line2": [
-                    (body_line2[0][1] - body_line2[1][1])
-                    / (body_line2[0][0] - body_line2[1][0]),
-                    body_line2[0][1]
-                    - (body_line2[0][1] - body_line2[1][1])
-                    / (body_line2[0][0] - body_line2[1][0])
-                    * body_line2[0][0],
-                ],
+                    (body_line2[1][1] - body_line2[0][1])/ (body_line2[1][0] - body_line2[0][0]),
+                    body_line2[0][1] - (body_line2[1][1] - body_line2[0][1])/ (body_line2[1][0] - body_line2[0][0]) * body_line2[0][0]
+                ]
             }
 
     def intersection_points(
@@ -240,23 +229,16 @@ class CenterCalibration:
         wing_line = points_dict["wing_line"]
         body_line1 = points_dict["body_line1"]
         body_line2 = points_dict["body_line2"]
-        intersection_with_wing_1 = [
-            (body_line1[1] - wing_line[1]) / (wing_line[0] - body_line1[0]),
-            wing_line[0]
-            * (body_line1[1] - wing_line[1])
-            / (wing_line[0] - body_line1[0])
-            + wing_line[1],
-        ]
-        intersection_with_wing_2 = [
-            (body_line2[1] - wing_line[1]) / (wing_line[0] - body_line2[0]),
-            wing_line[0]
-            * (body_line2[1] - wing_line[1])
-            / (wing_line[0] - body_line2[0])
-            + wing_line[1],
-        ]
-        return (intersection_with_wing_2[0] + intersection_with_wing_1[0]) / 2, (
-            intersection_with_wing_2[1] + intersection_with_wing_1[1]
-        ) / 2
+        try:
+            intersection_point_body1 = (wing_line[1] - body_line1[1])/(body_line1[0] - wing_line[0])
+            intersection_point_body2 = (wing_line[1] - body_line2[1])/(body_line2[0] - wing_line[0])
+            return [
+                (intersection_point_body1[0] + intersection_point_body2[0])/2,
+                (intersection_point_body1[1] + intersection_point_body2[1])/2
+            ]
+        except:
+            return None
+        
 
     def create_reference_dataframe(
         path_to_folder: Path,
@@ -293,13 +275,13 @@ class CenterCalibration:
             else:
                 points_dict = CenterCalibration.get_reference_lines(img)
                 intersection_points = CenterCalibration.intersection_points(points_dict)
-                result_dict[path.stem] = intersection_points
+                result_dict[f"{path_to_folder.stem}/{path.stem}"] = intersection_points
                 if print:
                     fig, ax = plt.subplots()
                     ax.imshow(img)
                     ax.scatter(intersection_points[0], intersection_points[1], c="r")
                     ax.set_title(path.stem)
-                    plt.savefig(f"debug/test-{path.stem}.png")
+                    plt.savefig(f"debug/test-{path_to_folder.stem}-{path.stem}.png")
                     plt.clf()
         data = {key: value for key, value in result_dict.items() if value is not None}
         data = {key: data[key] for key in sorted(data.keys())}

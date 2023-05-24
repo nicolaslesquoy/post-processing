@@ -150,5 +150,5 @@ if __name__ == "__main__":
 
     # Launch the calibration
     global_driver.calibrate(calibrate_images=False, calibrate_center=True)
-    # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "center_calibration.pkl"))
+    print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "center_calibration.pkl"))
     # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl"))
