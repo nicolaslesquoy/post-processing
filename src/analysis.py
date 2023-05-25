@@ -34,7 +34,7 @@ class Analysis:
             nonlocal var_data
             var_data.append({"a": [x1, y1], "b": [x2, y2]})
 
-        plt.title(name + " - Select the rectangle")
+        plt.title(name + " - Select the rectangle (stable)")
         rs = RectangleSelector(
             ax,
             select_callback,
@@ -74,7 +74,7 @@ class Analysis:
             var_data.append({"a": [x1, y1], "b": [x2, y2]})
             # print("({:.3f}, {:.3f}) --> ({:.3f}, {:.3f})".format(x1, y1, x2, y2))
 
-        plt.title(name + " - Select the rectangle")
+        plt.title(name + " - Select the rectangle (unstable)")
         rs = RectangleSelector(
             ax,
             select_callback,
@@ -140,4 +140,5 @@ class Analysis:
                         result_int["center"] = Analysis.get_center(path_to_folder.stem, path_to_file.stem, center_dataframe)
                 except:
                     pass
-        return fop.save_dict_as_dataframe(result_dict)
+                result_dict[name] = result_int
+        return pd.DataFrame.from_dict(result_dict, orient="index")

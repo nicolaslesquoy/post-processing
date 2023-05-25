@@ -1,0 +1,6 @@
+Processus de construction
+- Calibration avec les mires et obtention de points de référence
+- Eventuellement si prêt calibration du center
+
+- Pointage des tourbillons, redressement des images, amplification des contrastes
+- Approximation des tourbillons (incertitude importante)

@@ -22,6 +22,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../utils"))
 from calibration import ImageCalibration as ic
 from calibration import CenterCalibration as cc
 from operations import FileOperations as fop
+from analysis import Analysis as an
 
 # Custom types
 from custom_types import Path
@@ -78,7 +79,7 @@ class GlobalDriver:
         analysis_flag: bool = False,
         graph_flag: bool = False,
         rotate: bool = True,
-        resize: bool = False
+        resize: bool = False,
     ) -> None:
         """This method is used to initialize the class.
 
@@ -115,23 +116,69 @@ class GlobalDriver:
         self.rotate = rotate
         self.resize = resize
 
-    def calibrate(self, calibrate_center: bool = False, calibrate_images: bool = False) -> bool:
+    def calibrate(
+        self, calibrate_center: bool = False, calibrate_images: bool = False
+    ) -> bool:
         """This method is used to calibrate the images."""
         # Calibration
         if self.calibrate_flag and (calibrate_center or calibrate_images):
             if calibrate_images:
                 print("Image Calibration")
-                image_calibration_dataframe = ic.create_reference_dataframe(self.path_to_calibration_folder[0], self.calibration_positions,resize=self.resize)
-                fop.save_dataframe_to_pickle(image_calibration_dataframe, self.path_to_debug / "image_calibration.pkl")
+                image_calibration_dataframe = ic.create_reference_dataframe(
+                    self.path_to_calibration_folder[0],
+                    self.calibration_positions,
+                    resize=self.resize,
+                )
+                fop.save_dataframe_to_pickle(
+                    image_calibration_dataframe,
+                    self.path_to_debug / "image_calibration.pkl",
+                )
             if calibrate_center:
                 print("Center Calibration")
-                calibration_dataframe = fop.load_pickle_to_dataframe(self.path_to_debug / "image_calibration.pkl")
-                center_calibration_dataframe = cc.create_reference_dataframe(self.path_to_calibration_folder[1], calibration_dataframe,resize=self.resize,rotate=self.rotate)
-                fop.save_dataframe_to_pickle(center_calibration_dataframe, self.path_to_debug / "center_calibration.pkl")
+                calibration_dataframe = fop.load_pickle_to_dataframe(
+                    self.path_to_debug / "image_calibration.pkl"
+                )
+                center_calibration_dataframe = cc.create_reference_dataframe(
+                    self.path_to_calibration_folder[1],
+                    calibration_dataframe,
+                    resize=self.resize,
+                    rotate=self.rotate,
+                )
+                fop.save_dataframe_to_pickle(
+                    center_calibration_dataframe,
+                    self.path_to_debug / "center_calibration.pkl",
+                )
             return True
         else:
             return False
-        
+
+    def analyse(self, exclude_folder: list[int] = []) -> bool:
+        """This method is used to analyse the images."""
+        # Analysis
+        if self.analysis_flag:
+            print("Analysis")
+            # Load the calibration dataframes
+            image_calibration_dataframe = fop.load_pickle_to_dataframe(
+                self.path_to_debug / "image_calibration.pkl"
+            )
+            center_calibration_dataframe = None # TODO : implement this feature
+            # Create the final dataframes
+            for path in self.path_to_raw_folder:
+                if self.path_to_raw_folder.index(path) not in exclude_folder:
+                    print(f"Processing {path}")
+                    final_dataframe = an.driver(
+                        path,
+                        image_calibration_dataframe,
+                        center_calibration_dataframe,
+                        resize=self.resize,
+                    )
+                    fop.save_dataframe_to_pickle(
+                        final_dataframe, self.path_to_debug / f"result_dataframe_{path.stem}.pkl"
+                    )
+            return True
+        else:
+            return False
+
 if __name__ == "__main__":
     # Create the class
     global_driver = GlobalDriver(
@@ -140,15 +187,17 @@ if __name__ == "__main__":
         path_to_debug=PATH_TO_DEBUG,
         path_to_final=PATH_TO_FINAL,
         calibration_positions=CALIBRATION_POSITIONS,
-        calibrate_flag=True,
+        calibrate_flag=False,
         verify_flag=False,
         analysis_flag=False,
         graph_flag=False,
         rotate=True,
-        resize=False
+        resize=False,
     )
 
     # Launch the calibration
-    global_driver.calibrate(calibrate_images=False, calibrate_center=True)
-    print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "center_calibration.pkl"))
+    global_driver.calibrate(calibrate_images=True, calibrate_center=False)
+    global_driver.analyse(exclude_folder=[1,2,3,4,5])
+    # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "center_calibration.pkl"))
     # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl"))
+    print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_std.pkl"))
