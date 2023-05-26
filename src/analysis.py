@@ -14,49 +14,22 @@ from custom_types import Path, Dataframe, NumpyArray
 from custom_types import NumpyArray
 
 class Analysis:
-    def draw_rectangle_stable(name: str, img: NumpyArray):
+    def draw_rectangle(name: str, img: NumpyArray, type: str = "stable"):
         fig, ax = plt.subplots()
         ax.imshow(img)
         var_data = []
-
-        def select_callback(eclick, erelease):
-            x1, y1 = eclick.xdata, eclick.ydata
-            x2, y2 = erelease.xdata, erelease.ydata
-            rect = plt.Rectangle(
-                (min(x1, x2), min(y1, y2)),
-                np.abs(x1 - x2),
-                np.abs(y1 - y2),
-                facecolor="none",
-                edgecolor="green",
-                linewidth=2,
-            )
-            ax.add_patch(rect)
-            nonlocal var_data
-            var_data.append({"a": [x1, y1], "b": [x2, y2]})
-
-        plt.title(name + " - Select the rectangle (stable)")
-        rs = RectangleSelector(
-            ax,
-            select_callback,
-            useblit=False,
-            button=[1],
-            minspanx=5,
-            minspany=5,
-            spancoords="pixels",
-            interactive=True,
-        )
-
-        plt.show()
-
-        if len(var_data) == 0:
-            return None
+        if type == "stable":
+            color = "green"
+            title = name + " - Select the rectangle (stable)"
+        elif type == "unstable":
+            color = "red"
+            title = name + " - Select the rectangle (unstable)"
+        elif type == "fuselage":
+            color = "blue"
+            title = name + " - Select the rectangle (fuselage)"
         else:
-            return var_data
-        
-    def draw_rectangle_unstable(name: str, img: NumpyArray):
-        fig, ax = plt.subplots()
-        ax.imshow(img)
-        var_data = []
+            color = "white"
+            title = name + " - Select the rectangle (unknown)"
 
         def select_callback(eclick, erelease):
             x1, y1 = eclick.xdata, eclick.ydata
@@ -66,15 +39,14 @@ class Analysis:
                 np.abs(x1 - x2),
                 np.abs(y1 - y2),
                 facecolor="none",
-                edgecolor="red",
+                edgecolor=color,
                 linewidth=2,
             )
             ax.add_patch(rect)
             nonlocal var_data
             var_data.append({"a": [x1, y1], "b": [x2, y2]})
-            # print("({:.3f}, {:.3f}) --> ({:.3f}, {:.3f})".format(x1, y1, x2, y2))
 
-        plt.title(name + " - Select the rectangle (unstable)")
+        plt.title(title)
         rs = RectangleSelector(
             ax,
             select_callback,
@@ -127,13 +99,17 @@ class Analysis:
         for path_to_file in path_to_folder.glob("*.jpg"):
             calibration_ref = cop.read_file_name(path_to_file)[2]
             if calibration_ref in list_index:
-                warped = Warp.warp(path_to_file, calibration_dataframe, resize=resize)
+                img = Warp.warp(path_to_file, calibration_dataframe, resize=resize)
+                # th = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,11,2)
+                warped = cv2.addWeighted(img, 3, np.zeros(img.shape, img.dtype), 0, 0)
+                # warped = cv2.addWeighted(add_weighted, 0.5, th, 0.5, 0)
                 result_int = {}
                 try:
                     name = path_to_file.stem
                     result_int["name"] = name
-                    result_int["rectangle_stable"] = Analysis.draw_rectangle_stable(name, warped)
-                    result_int["rectangle_unstable"] = Analysis.draw_rectangle_unstable(name, warped)
+                    result_int["rectangle_stable"] = Analysis.draw_rectangle(name, warped, type="stable")
+                    result_int["rectangle_unstable"] = Analysis.draw_rectangle(name, warped, type="unstable")
+                    result_int["rectangle_fuselage"] = Analysis.draw_rectangle(name, warped, type="fuselage")
                     if draw_center:
                         result_int["center"] = Analysis.draw_center(name, warped)
                     else:

@@ -4,3 +4,28 @@ Processus de construction
 
 - Pointage des tourbillons, redressement des images, amplification des contrastes
 - Approximation des tourbillons (incertitude importante)
+
+##############################################
+
+# 1. Post-processing of the experimental datasets
+# 1.1 Post-processing pipeline explanation
+The data obtained during the different experimental sessions was concentrated in an important number of images for the test cases we decided 
+to investigate. The various datasets were then processed using a Python program to obtain the experimental graphs presented in the paper. The source
+code of the post-processing program is available at https://github.com/nicolaslesquoy/post-processing. The program relies on OpenCV and matplotlib to
+perform the image processing and the plotting of the results. The post-processing pipeline is divided in the following steps:
+- Calibration of the camera using a reference grid on a movable support: this step is used to obtain the reference points for each section of the model 
+in order to later unwarp the images and obtain the correct real-world dimensions. This step is not necessary if the calibration file already exists.
+- Unwarping and feature enhancement: the images are unwarped using the reference points obtained during the calibration step. The images are then 
+enhanced using adaptive mean thresholding and contrast enhancement to obtain an image where the vortices are clearly visible, even if the original
+image quality didn't allow to correctly identify the vortices.
+- Vortex identification: the vortices are identified using by manually selecting the zones of interest in the images and the center of the model on 
+each image.
+- Final processing: the center of the vortices are approximated as being the center of each zone of interest and the distance between the center of
+the vortices and the model center is computed. The results are then stored as pandas dataframes and saved as Pickle files to be later reused.
+- Plotting: the results are plotted using matplotlib and the dataframes obtained during the previous step.
+
+# Ajouter une illustration du processus
+
+# 1.2 Results obtained for the different test cases
+
+# 1.3 Discussion of the results

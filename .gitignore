@@ -145,3 +145,5 @@ test/
 
 # Built Visual Studio Code Extensions
 *.vsix
+# images
+*.jpg

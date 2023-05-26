@@ -37,7 +37,7 @@ class Warp:
     
     def warp(path_to_image: Path, calibration_dataframe: Dataframe, rotate: bool = True, resize: bool = True):
         """Warp the image."""
-        img = cv2.imread(str(path_to_image))
+        img = cv2.imread(str(path_to_image), cv2.IMREAD_GRAYSCALE)
         if resize:
             img = cv2.resize(img, (0, 0), fx=0.5, fy=0.5)
         if rotate:

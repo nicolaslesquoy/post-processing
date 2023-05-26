@@ -189,7 +189,7 @@ if __name__ == "__main__":
         calibration_positions=CALIBRATION_POSITIONS,
         calibrate_flag=False,
         verify_flag=False,
-        analysis_flag=False,
+        analysis_flag=True,
         graph_flag=False,
         rotate=True,
         resize=False,
@@ -197,7 +197,8 @@ if __name__ == "__main__":
 
     # Launch the calibration
     global_driver.calibrate(calibrate_images=True, calibrate_center=False)
-    global_driver.analyse(exclude_folder=[1,2,3,4,5])
+    global_driver.analyse(exclude_folder=[0,1,2,3,4])
+
     # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "center_calibration.pkl"))
-    # print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "image_calibration.pkl"))
-    print(fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_std.pkl"))
+    df = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_derapage_std.pkl")
+    df.to_string("debug/derapage_std.txt")
