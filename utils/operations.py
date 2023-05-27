@@ -56,6 +56,17 @@ class CalibrationOperations:
         p1, p2, p3, p4 = [center[0] + dx, center[1] + dy], [center[0] - dx, center[1] +
                                                             dy], [center[0] - dx, center[1] - dy], [center[0] + dx, center[1] - dy]
         return np.array(CalibrationOperations.order_points_clockwise([p1, p2, p3, p4]), dtype=np.float32)
+    
+    def get_conversion(Nx, Ny):
+        reference = CalibrationOperations.create_destination_points(Nx, Ny, 500, 500)
+        # print(reference)
+        delta_nx = abs(reference[1][0] - reference[0][0])
+        delta_ny = abs(reference[2][1] - reference[0][1])
+        delta_x = 10  # cm
+        delta_y = 10  # cm
+        dx = delta_x / delta_nx
+        dy = delta_y / delta_ny
+        return [dx, dy]
 
     def read_file_name(path: Path) -> list[str]:
         """Read the file name from the path to ouput its information.
@@ -113,15 +124,70 @@ class MathOperations:
         ss_tot = np.sum((ydata - np.mean(ydata)) ** 2)
         r2 = 1 - (ss_res / ss_tot)
         return r2
+    
+    def get_middle(p1: list[float], p2: list[float]) -> list[float]:
+        """Get the middle point between two points.
+
+        Parameters
+        ----------
+        p1 : list[float]
+            First point.
+        p2 : list[float]
+            Second point.
+
+        Returns
+        -------
+        list[float]
+            Middle point.
+        """
+        return [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]
+
+    def get_distance(p1: list[float], p2: list[float]) -> float:
+        """Get the distance between two points.
+
+        Parameters
+        ----------
+        p1 : list[float]
+            First point.
+        p2 : list[float]
+            Second point.
+
+        Returns
+        -------
+        float
+            Distance between the two points.
+        """
+        return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+    
+    def get_coordinates_from_point(ref: list[float], point: list[float]):
+        """Get the coordinates of a point from a reference point.
+
+        Parameters
+        ----------
+        ref : list[float]
+            Reference point.
+        point : list[float]
+            Point to get the coordinates from.
+
+        Returns
+        -------
+        list[float]
+            Coordinates of the point from the reference point.
+        """
+        return [point[0] - ref[0], abs(point[1] - ref[1])] # y is inverted
+    
+    def get_conversion(Nx,Ny):
+        dst_points = CalibrationOperations.create_destination_points(Nx, Ny, 500, 500)
+        dx = dst_points[0][0] - dst_points[1][0]
+        dy = dst_points[0][1] - dst_points[2][1]
+        return dx/10, dy/10
+
 
 
 class ImageOperations:
 
     def convert_coordinates(coordinates: Coordinates, dx: int, dy: int):
         return [[x - dx, y - dy] for x, y in coordinates]
-
-    def refine_position(x: float, y: float, dx: int, dy: int):
-        pass
 
 
 class LineBuilder(object):

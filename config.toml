@@ -10,6 +10,7 @@ path_to_raw = "../images/raw"
 path_to_final = "../images/final/"
 # Path to the debug folder where all intermediate graphs will be saved
 path_to_debug = "./debug/"
+path_to_reference = "./reference/"
 [measures_calibration]
 # Position of the calibration marks for the distance
 pic0 = 0

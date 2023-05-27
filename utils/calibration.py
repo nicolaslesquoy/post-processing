@@ -288,3 +288,37 @@ class CenterCalibration:
         dataframe = pd.DataFrame.from_dict(data, orient="index")
         dataframe["name"] = sorted(dataframe.index)
         return dataframe
+    
+    def extract_center_from_dataframe(dataframe: Dataframe):
+        list_center = []
+        for row in dataframe.iterrows():
+            row = row[1].to_dict()
+            name = row["name"]
+            if row["center"] != None:
+                list_center.append({"label": f"{name}", "center": row["center"]})
+        return list_center
+    
+    def create_center_dataframe(folder_to_pickle: Path):
+        global_list_center = []
+        for path in folder_to_pickle.glob("*.pkl"):
+            name = path.stem.strip("result_")
+            dataframe = fop.load_pickle_to_dataframe(path)
+            list_center = CenterCalibration.extract_center_from_dataframe(dataframe)
+            global_list_center += list_center
+        result_dict = {}
+        for center in global_list_center:
+            label = center["label"].split("-")
+            name = f"{label[0]}-{label[1]}-{label[2]}"
+            if name not in result_dict.keys():
+                result_dict[name] = []
+        for center in global_list_center:
+            label = center["label"].split("-")
+            name = f"{label[0]}-{label[1]}-{label[2]}"
+            result_dict[name].append(center["center"])
+        center_dict = {}
+        for key in result_dict.keys():
+            center_array = np.array(result_dict[key],dtype=np.float32)
+            center_dict[key] = [np.mean(center_array[:, 0]), np.mean(center_array[:, 1])]
+        
+        return center_dict
+
