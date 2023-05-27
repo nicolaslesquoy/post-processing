@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 
-# Local packages
 from custom_types import Path, Dataframe, DictPoints, Coordinates, NumpyArray
 
 
@@ -182,13 +181,143 @@ class MathOperations:
         dy = dst_points[0][1] - dst_points[2][1]
         return dx/10, dy/10
 
+class PlotOperations:
 
 
-class ImageOperations:
+    def get_distance(name:str, calibration_positions: DictPoints) -> float:
+        """This method is used to get the distance of the image from the camera.
 
-    def convert_coordinates(coordinates: Coordinates, dx: int, dy: int):
-        return [[x - dx, y - dy] for x, y in coordinates]
+        Parameters
+        ----------
+        name : str
+            Name of the image.
+        calibration_positions : DictPoints
+            Calibration positions.
 
+        Returns
+        -------
+        float
+            Distance of the image from the camera.
+        """
+        calibration_pos = name.split("-")[2]
+        return calibration_positions[f"pic{calibration_pos}"]
+    
+    def load_points(dataframe: Dataframe, incidence: bool, derapage: bool) -> bool:
+        """This method returns a dictionary containing the points of the dataframe separated by incidence or derapage."""
+        list_index = dataframe.index
+        if incidence:
+            list_incidence = sorted(
+                list(set([list_index[i].split("-")[0] for i in range(len(list_index))]))
+            )
+            result_dict = {
+                key: [] for key in list_incidence
+            }  # initialize the dictionary
+            for row in dataframe.iterrows():
+                result_dict[row[0].split("-")[0]].append(row[1].to_dict())
+            return result_dict
+        if derapage:
+            list_derapage = sorted(
+                list(set([list_index[i].split("-")[1] for i in range(len(list_index))]))
+            )
+            result_dict = {
+                key: [] for key in list_derapage
+            }  # initialize the dictionary
+            for row in dataframe.iterrows():
+                result_dict[row[0].split("-")[1]].append(row[1].to_dict())
+            return result_dict
+
+    def clean_dict(result_dict: dict) -> dict:
+        """This method returns a copy of the dictionary cleaned."""
+        copy_dict = result_dict.copy()
+        for key in copy_dict.keys():
+            for point in copy_dict[key]:
+                if point["center"] == None:
+                    copy_dict[key].remove(point)
+        return copy_dict
+
+    def clean_dict_fuselage(result_dict: dict) -> dict:
+        """This method returns a copy of the dictionary cleaned."""
+        copy_dict = result_dict.copy()
+        for key in copy_dict.keys():
+            for point in copy_dict[key]:
+                point.pop("rectangle_fuselage")
+        return copy_dict
+
+    def clean_dict_smaller_vortices(result_dict: dict) -> dict:
+        """This method returns a copy of the dictionary cleaned."""
+        copy_dict = result_dict.copy()
+        for key in copy_dict.keys():
+            for point in copy_dict[key]:
+                if (
+                    point["rectangle_stable"] != None
+                    and len(point["rectangle_stable"]) > 1
+                ):
+                    point["rectangle_stable"].remove(point["rectangle_stable"][0])
+        return copy_dict
+
+    def extract_points_from_dict(result_dict: dict, list_type: str):
+        """This method returns a copy of the dictionary cleaned."""
+        copy_dict = result_dict.copy()
+        for type in list_type:
+            if type == "clean":
+                copy_dict = PlotOperations.clean_dict(copy_dict)
+            if type == "clean_fuselage":
+                copy_dict = PlotOperations.clean_dict_fuselage(copy_dict)
+            if type == "clean_smaller_vortices":
+                copy_dict = PlotOperations.clean_dict_smaller_vortices(copy_dict)
+        return copy_dict
+
+    def prepare_points(result_dict: dict, center_dict: dict, calibration_positions: dict):
+        filtered_dict = {}
+        for key in result_dict.keys():
+            list_of_points = []
+            for point in result_dict[key]:
+                name = point["name"]
+                keys_list = list(point.keys())
+                if point["rectangle_stable"] != None:
+                    for rectangle in point["rectangle_stable"]:
+                        if abs(rectangle["a"][0] - rectangle["b"][0]) > 1e-3:
+                            list_of_points.append(
+                                {
+                                    "label": f"{name}/rectangle_stable",
+                                    "coordinates": MathOperations.get_coordinates_from_point(
+                                        center_dict[name],
+                                        MathOperations.get_middle(rectangle["a"], rectangle["b"]),
+                                    ),
+                                    "distance": PlotOperations.get_distance(name, calibration_positions)
+                                }
+                            )
+                if (
+                    "rectangle_fuselage" in keys_list
+                    and point["rectangle_fuselage"] != None
+                ):
+                    for rectangle in point["rectangle_fuselage"]:
+                        if abs(rectangle["a"][0] - rectangle["b"][0]) > 1e-3:
+                            list_of_points.append(
+                                {
+                                    "label": f"{name}/rectangle_fuselage",
+                                    "coordinates": MathOperations.get_coordinates_from_point(
+                                        center_dict[name],
+                                        MathOperations.get_middle(rectangle["a"], rectangle["b"]),
+                                    ),
+                                    "distance": PlotOperations.get_distance(name, calibration_positions)
+                                }
+                            )
+                if point["rectangle_unstable"] != None:
+                    for rectangle in point["rectangle_unstable"]:
+                        if abs(rectangle["a"][0] - rectangle["b"][0]) > 1e-3:
+                            list_of_points.append(
+                                {
+                                    "label": f"{name}/rectangle_unstable",
+                                    "coordinates": MathOperations.get_coordinates_from_point(
+                                        center_dict[name],
+                                        MathOperations.get_middle(rectangle["a"], rectangle["b"]),
+                                    ),
+                                    "distance": PlotOperations.get_distance(name, calibration_positions)
+                                }
+                            )
+            filtered_dict[key] = list_of_points
+        return filtered_dict
 
 class LineBuilder(object):
 
