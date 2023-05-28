@@ -218,7 +218,7 @@ if __name__ == "__main__":
         calibration_positions=CALIBRATION_POSITIONS,
         calibrate_flag=False,
         verify_flag=False,
-        analysis_flag=True,
+        analysis_flag=False,
         graph_flag=True,
         rotate=True,
         resize=False,
@@ -226,56 +226,37 @@ if __name__ == "__main__":
 
     # Launch the calibration
     # global_driver.calibrate(calibrate_images=True, calibrate_center=False)
-    global_driver.analyse(exclude_folder=[1, 2, 3, 4, 5])
-    # center_dict = cc.create_center_dataframe(PATH_TO_REFERENCE)
-    # incidence_std_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_std.pkl")
-    # incidence_std_dict = pop.load_points(incidence_std_dataframe, True, False)
-    # incidence_std_dict = pop.extract_points_from_dict(incidence_std_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
-    # incidence_std_dict = pop.prepare_points(incidence_std_dict, center_dict, CALIBRATION_POSITIONS)
-    # dr.draw_graph_X("Evolution de la position du tourbillon \n en fonction de l'incidence en configuration standard", "incidence_std", PATH_TO_FINAL, incidence_std_dict, CALIBRATION_POSITIONS, {"15": "red", "20": "green", "25": "blue"}, dx=0.01, yerr=0)
-    # dr.draw_graph_XY("Evolution de la position du tourbillon \n en fonction de l'incidence en configuration standard", "incidence_std", PATH_TO_FINAL, incidence_std_dict, CALIBRATION_POSITIONS, {"15": "red", "20": "green", "25": "blue"}, dx=0.01, dy=0.01, xerr=0, yerr=0)
-    # derapage_std_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_derapage_std.pkl")
-    # derapage_std_dict = pop.load_points(derapage_std_dataframe, False, True)
-    # derapage_std_dict = pop.extract_points_from_dict(derapage_std_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
-    # derapage_std_dict = pop.prepare_points(derapage_std_dict, center_dict, CALIBRATION_POSITIONS)
-    # derapage_std_dict_merge = {
-    #     "0": incidence_std_dict["20"],
-    #     "5": derapage_std_dict["5"],
-    #     "10": derapage_std_dict["10"],
-    # }
-    # dr.draw_graph_X("Evolution de la position du tourbillon \n en fonction du dérapage en configuration standard", "derapage_std", PATH_TO_FINAL, derapage_std_dict_merge, CALIBRATION_POSITIONS, {"0": "red", "5": "green", "10": "blue"}, dx=0.01, yerr=0)
-    # dr.draw_graph_XY("Evolution de la position du tourbillon \n en fonction du dérapage en configuration standard", "derapage_std", PATH_TO_FINAL, derapage_std_dict_merge, CALIBRATION_POSITIONS, {"0": "red", "5": "green", "10": "blue"}, dx=0.01, dy=0.01, xerr=0, yerr=0)
-    # incidence_long_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_long.pkl")
-    # incidence_long_dict = pop.load_points(incidence_long_dataframe, True, False)
-    # incidence_long_dict = pop.extract_points_from_dict(incidence_long_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
-    # incidence_long_dict = pop.prepare_points(incidence_long_dict, center_dict, CALIBRATION_POSITIONS)
-    # incidence_canards_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_canards.pkl")
-    # incidence_canards_dict = pop.load_points(incidence_canards_dataframe, True, False)
-    # incidence_canards_dict = pop.extract_points_from_dict(incidence_canards_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
-    # incidence_canards_dict = pop.prepare_points(incidence_canards_dict, center_dict, CALIBRATION_POSITIONS)
-    # incidence_merge = {
-    #     "std": incidence_std_dict["20"],
-    #     "long": incidence_long_dict["20"],
-    #     "canards": incidence_canards_dict["20"],
-    # }
-    # dr.draw_graph_X("Evolution de la position du tourbillon \n en fonction de la configuration", "config", PATH_TO_FINAL, incidence_merge, CALIBRATION_POSITIONS, {"std": "red", "long": "green", "canards": "blue"}, dx=0.01, yerr=0)
-    # dr.draw_graph_XY("Evolution de la position du tourbillon \n en fonction de la configuration", "config", PATH_TO_FINAL, incidence_merge, CALIBRATION_POSITIONS, {"std": "red", "long": "green", "canards": "blue"}, dx=0.01, dy=0.01, xerr=0, yerr=0)
-    # # dataframe_1 = fop.load_pickle_to_dataframe(
-    # #     PATH_TO_DEBUG / "result_dataframe_derapage_std.pkl"
-    # # )
-    # # result_dict_1 = pop.load_points(dataframe_1, False, True)
-    # # # print(result_dict)
-    # # result_dict_1 = pop.extract_points_from_dict(result_dict_1, ["clean", "clean_fuselage", "clean_smaller_vortices"])
-    # # result_dict_1 = pop.prepare_points(result_dict_1, center_dict, CALIBRATION_POSITIONS)
-    # # dataframe_2= fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_std.pkl")
-    # # result_dict_2 = pop.load_points(dataframe_2, True, False)
-    # # result_dict_2 = pop.extract_points_from_dict(result_dict_2, ["clean", "clean_fuselage", "clean_smaller_vortices"])
-    # # result_dict_2 = pop.prepare_points(result_dict_2, center_dict, CALIBRATION_POSITIONS)
-    # # result_dict = {
-    # #     "0": result_dict_2["20"],
-    # #     "5": result_dict_1["5"],
-    # #     "10": result_dict_1["10"],
-    # # }
-    # # dr.draw_graph_X("Evolution de la position du tourbillon \n dans le plan de l'aile", "test", PATH_TO_FINAL,result_dict, CALIBRATION_POSITIONS, {"0": "red", "5": "green", "10": "blue"}, 0.01, 0.5)
-    # # dr.draw_graph_XY("Evolution de la position du tourbillon", "test", PATH_TO_FINAL,result_dict, CALIBRATION_POSITIONS, {"0": "red", "5": "green", "10": "blue"}, 0.01, 0.01, 0.5, 0.5)
-
+    global_driver.analyse(exclude_folder=[0, 2, 3, 4, 5])
+    center_dict = cc.create_center_dataframe(PATH_TO_REFERENCE)
+    incidence_std_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_std.pkl")
+    incidence_std_dict = pop.load_points(incidence_std_dataframe, True, False)
+    incidence_std_dict = pop.extract_points_from_dict(incidence_std_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
+    incidence_std_dict = pop.prepare_points(incidence_std_dict, center_dict, CALIBRATION_POSITIONS)
+    dr.draw_graph_X("Evolution de la position du tourbillon \n en fonction de l'incidence en configuration standard", "incidence_std", PATH_TO_FINAL, incidence_std_dict, CALIBRATION_POSITIONS, {"15": "red", "20": "green", "25": "blue"}, dx=0.01, yerr=0)
+    dr.draw_graph_XY("Evolution de la position du tourbillon \n en fonction de l'incidence en configuration standard", "incidence_std", PATH_TO_FINAL, incidence_std_dict, CALIBRATION_POSITIONS, {"15": "red", "20": "green", "25": "blue"}, dx=0.01, dy=0.01, xerr=0, yerr=0)
+    derapage_std_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_derapage_std.pkl")
+    derapage_std_dict = pop.load_points(derapage_std_dataframe, False, True)
+    derapage_std_dict = pop.extract_points_from_dict(derapage_std_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
+    derapage_std_dict = pop.prepare_points(derapage_std_dict, center_dict, CALIBRATION_POSITIONS)
+    derapage_std_dict_merge = {
+        "0": incidence_std_dict["20"],
+        "10": derapage_std_dict["10"],
+    }
+    dr.draw_graph_X("Evolution de la position du tourbillon \n en fonction du dérapage en configuration standard", "derapage_std", PATH_TO_FINAL, derapage_std_dict_merge, CALIBRATION_POSITIONS, {"0": "red", "10": "blue"}, dx=0.01, yerr=0)
+    dr.draw_graph_XY("Evolution de la position du tourbillon \n en fonction du dérapage en configuration standard", "derapage_std", PATH_TO_FINAL, derapage_std_dict_merge, CALIBRATION_POSITIONS, {"0": "red", "10": "blue"}, dx=0.01, dy=0.01, xerr=0, yerr=0)
+    incidence_long_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_long.pkl")
+    incidence_long_dict = pop.load_points(incidence_long_dataframe, True, False)
+    incidence_long_dict = pop.extract_points_from_dict(incidence_long_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
+    incidence_long_dict = pop.prepare_points(incidence_long_dict, center_dict, CALIBRATION_POSITIONS)
+    incidence_canards_dataframe = fop.load_pickle_to_dataframe(PATH_TO_DEBUG / "result_dataframe_incidence_canards.pkl")
+    incidence_canards_dict = pop.load_points(incidence_canards_dataframe, True, False)
+    incidence_canards_dict = pop.extract_points_from_dict(incidence_canards_dict, ["clean", "clean_fuselage", "clean_smaller_vortices"])
+    incidence_canards_dict = pop.prepare_points(incidence_canards_dict, center_dict, CALIBRATION_POSITIONS)
+    incidence_merge = {
+        "std": incidence_std_dict["20"],
+        "long": incidence_long_dict["20"],
+        "canards": incidence_canards_dict["20"],
+    }
+    dr.draw_graph_X("Evolution de la position du tourbillon \n en fonction de la configuration", "config", PATH_TO_FINAL, incidence_merge, CALIBRATION_POSITIONS, {"std": "red", "long": "green", "canards": "blue"}, dx=0.01, yerr=0)
+    dr.draw_graph_XY("Evolution de la position du tourbillon \n en fonction de la configuration", "config", PATH_TO_FINAL, incidence_merge, CALIBRATION_POSITIONS, {"std": "red", "long": "green", "canards": "blue"}, dx=0.01, dy=0.01, xerr=0, yerr=0)
+    dr.draw_stack(PATH_TO_FINAL, "stack_incidence_20", PATH_TO_RAW_IMAGES_FOLDER[1], "20", "10", False)

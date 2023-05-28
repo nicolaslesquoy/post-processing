@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches
-from custom_types import Path 
+from custom_types import Path
+import numpy as np
+import cv2 
 
 
 class Drawing:
@@ -126,3 +128,27 @@ class Drawing:
         plt.savefig(f"{path_to_folder}/{name}_XY.png")
         plt.clf()
         return True
+    
+    def draw_stack(path_to_target: Path, name: str, path_to_folder: Path, target_incidence: str, target_derapage: str, incidence: bool):
+        number_of_files = len(list(path_to_folder.glob("*.jpg")))
+        fraction = 1/number_of_files
+        test = cv2.imread(str(list(path_to_folder.glob("*.jpg"))[0]))
+        output = np.zeros((test.shape[0], test.shape[1],3))
+        for path in path_to_folder.glob("*.jpg"):
+            if incidence:
+                if target_incidence == path.stem.split("-")[0]:
+                    output = np.add(output,fraction*cv2.imread(str(path)))
+            else:
+                if target_derapage == path.stem.split("-")[1]:
+                    output = np.add(output,fraction*cv2.imread(str(path)))
+
+        cv2.imwrite("output.jpg", output)
+        img = cv2.imread("output.jpg")
+        #  cv2.IMREAD_GRAYSCALE
+        img = cv2.rotate(img, cv2.ROTATE_180)
+        # img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        img = cv2.addWeighted(img, 7, np.zeros(img.shape, img.dtype), 0, 0)
+        cv2.imwrite(f"{path_to_target}/{name}.jpg", img)
+    
+    def draw_comparaison_CFD():
+        pass
